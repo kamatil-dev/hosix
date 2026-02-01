@@ -68,14 +68,19 @@ if %errorlevel% neq 0 (
 echo Dependencies installed successfully.
 
 REM Install Playwright browsers (only if not already installed)
+echo Checking Playwright browsers...
 if not exist "venv\Lib\site-packages\playwright\driver\package\.local-browsers" (
     echo Installing Playwright browsers (first time only, please wait)...
     python -m playwright install chromium
     if %errorlevel% neq 0 (
+        echo.
         echo [ERROR] Failed to install Playwright browsers!
+        echo.
         pause
         exit /b 1
     )
+) else (
+    echo Playwright browsers already installed.
 )
 
 REM Update script from GitHub
