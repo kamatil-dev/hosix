@@ -94,30 +94,24 @@ fi
 # Update script from GitHub
 echo ""
 echo "[5/5] Checking for script updates..."
-if [ "$GITHUB_RAW_URL" != "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/script.py" ]; then
-    echo "Downloading latest version from GitHub..."
-    if command_exists curl; then
-        if curl -fsSL "$GITHUB_RAW_URL" -o script.py.tmp 2>/dev/null; then
-            mv script.py.tmp script.py
-            echo "Script updated successfully!"
-        else
-            echo "Update check failed, using local version."
-            rm -f script.py.tmp
-        fi
-    elif command_exists wget; then
-        if wget -q "$GITHUB_RAW_URL" -O script.py.tmp 2>/dev/null; then
-            mv script.py.tmp script.py
-            echo "Script updated successfully!"
-        else
-            echo "Update check failed, using local version."
-            rm -f script.py.tmp
-        fi
+if command_exists curl; then
+    if curl -fsSL "$GITHUB_RAW_URL" -o script.py.tmp 2>/dev/null; then
+        mv script.py.tmp script.py
+        echo "Script updated successfully!"
     else
-        echo "Neither curl nor wget found, skipping update check."
+        echo "Update check failed, using local version."
+        rm -f script.py.tmp
+    fi
+elif command_exists wget; then
+    if wget -q "$GITHUB_RAW_URL" -O script.py.tmp 2>/dev/null; then
+        mv script.py.tmp script.py
+        echo "Script updated successfully!"
+    else
+        echo "Update check failed, using local version."
+        rm -f script.py.tmp
     fi
 else
-    echo "[INFO] GitHub URL not configured. Using local script.py"
-    echo "To enable auto-updates, edit run.sh and set GITHUB_RAW_URL"
+    echo "Neither curl nor wget found, skipping update check."
 fi
 
 echo ""

@@ -987,8 +987,4 @@ def main():
         browser.close()
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n\nScript interrompu par l'utilisateur.")
-        exit(0)
+    main()

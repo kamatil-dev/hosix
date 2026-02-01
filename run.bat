@@ -78,13 +78,7 @@ if not exist "venv\Lib\site-packages\playwright\driver\package\.local-browsers" 
 REM Update script from GitHub
 echo.
 echo [5/5] Checking for script updates...
-if not "%GITHUB_RAW_URL%"=="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/script.py" (
-    echo Downloading latest version from GitHub...
     powershell -Command "try { Invoke-WebRequest -Uri '%GITHUB_RAW_URL%' -OutFile 'script.py.tmp' -UseBasicParsing; Move-Item -Force 'script.py.tmp' 'script.py'; Write-Host 'Script updated successfully!' } catch { Write-Host 'Update check failed, using local version.' }"
-) else (
-    echo [INFO] GitHub URL not configured. Using local script.py
-    echo To enable auto-updates, edit run.bat and set GITHUB_RAW_URL
-)
 
 echo.
 echo ========================================
