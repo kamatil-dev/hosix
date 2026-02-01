@@ -57,7 +57,7 @@ python -m pip install --upgrade pip --quiet
 REM Install dependencies
 echo.
 echo [4/5] Installing/checking dependencies...
-pip install playwright beaupy --quiet
+python -m pip install playwright beaupy --quiet
 if %errorlevel% neq 0 (
     echo [ERROR] Failed to install Python packages!
     pause
@@ -67,7 +67,7 @@ if %errorlevel% neq 0 (
 REM Install Playwright browsers (only if not already installed)
 if not exist "venv\Lib\site-packages\playwright\driver\package\.local-browsers" (
     echo Installing Playwright browsers (first time only, please wait)...
-    playwright install chromium
+    python -m playwright install chromium
     if %errorlevel% neq 0 (
         echo [ERROR] Failed to install Playwright browsers!
         pause
