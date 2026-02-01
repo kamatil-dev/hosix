@@ -94,7 +94,7 @@ fi
 echo ""
 echo "[5/5] Checking for script updates..."
 if command_exists curl; then
-    if curl -fsSL "$GITHUB_RAW_URL" -o script.py.tmp 2>/dev/null; then
+    if curl -fsSL -H "Cache-Control: no-cache, no-store" -H "Pragma: no-cache" "$GITHUB_RAW_URL" -o script.py.tmp 2>/dev/null; then
         mv script.py.tmp script.py
         echo "Script updated successfully!"
     else
@@ -102,7 +102,7 @@ if command_exists curl; then
         rm -f script.py.tmp
     fi
 elif command_exists wget; then
-    if wget -q "$GITHUB_RAW_URL" -O script.py.tmp 2>/dev/null; then
+    if wget -q --no-cache "$GITHUB_RAW_URL" -O script.py.tmp 2>/dev/null; then
         mv script.py.tmp script.py
         echo "Script updated successfully!"
     else
