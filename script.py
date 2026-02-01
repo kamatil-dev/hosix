@@ -393,11 +393,13 @@ def main():
             page.wait_for_selector(BOOKING, timeout=DEFAULT_TIMEOUT_MS)
             page.keyboard.press("Escape")
             page.keyboard.press("Enter")
+            page.keyboard.press("Escape")
 
             safe_fill(page, TXT_IPP, current_ipp)
             page.wait_for_load_state("networkidle")
 
             page.keyboard.press("Enter")
+            page.keyboard.press("Escape")
             page.keyboard.press("Escape")
 
             safe_check(page, CHK_MANTENER)
