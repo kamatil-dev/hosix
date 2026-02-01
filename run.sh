@@ -71,24 +71,23 @@ python -m pip install --upgrade pip --quiet
 # Install dependencies
 echo ""
 echo "[4/5] Installing/checking dependencies..."
-pip install playwright beaupy --quiet
+python -m pip install playwright beaupy --quiet
 if [ $? -ne 0 ]; then
     echo "[ERROR] Failed to install Python packages!"
     read -p "Press Enter to close..."
     exit 1
 fi
 
-# Install Playwright browsers (only if not already installed)
-if [ ! -d "$HOME/.cache/ms-playwright" ] && [ ! -d "venv/lib/python*/site-packages/playwright/driver/package/.local-browsers" ]; then
-    echo "Installing Playwright browsers (first time only, please wait)..."
-    playwright install chromium
-    if [ $? -ne 0 ]; then
-        echo "[ERROR] Failed to install Playwright browsers!"
-        echo "You may need to install system dependencies:"
-        echo "  playwright install-deps chromium"
-        read -p "Press Enter to close..."
-        exit 1
-    fi
+# Install Playwright browsers
+echo ""
+echo "[4.5/5] Installing Playwright browsers (skipped if already installed)..."
+python -m playwright install chromium
+if [ $? -ne 0 ]; then
+    echo "[ERROR] Failed to install Playwright browsers!"
+    echo "You may need to install system dependencies:"
+    echo "  python -m playwright install-deps chromium"
+    read -p "Press Enter to close..."
+    exit 1
 fi
 
 # Update script from GitHub
