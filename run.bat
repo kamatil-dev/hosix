@@ -23,9 +23,29 @@ echo [1/5] Checking Python installation...
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
-    echo [ERROR] Python is not installed or not in PATH!
+    echo [INFO] Python is not installed. Attempting automatic installation...
     echo.
-    echo Please install Python from: https://www.python.org/downloads/
+    
+    REM Try winget first (Windows 10/11)
+    winget --version >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo Installing Python via winget...
+        winget install Python.Python.3.10 --version 3.10.11 --accept-package-agreements --accept-source-agreements
+        if %errorlevel% equ 0 (
+            echo.
+            echo [SUCCESS] Python installed successfully!
+            echo [INFO] Please close this window and run the script again.
+            echo         This is needed to refresh the PATH environment variable.
+            echo.
+            pause
+            exit /b 0
+        )
+    )
+    
+    echo.
+    echo [ERROR] Automatic installation failed!
+    echo.
+    echo Please install Python manually from: https://www.python.org/downloads/
     echo Make sure to check "Add Python to PATH" during installation.
     echo.
     pause
