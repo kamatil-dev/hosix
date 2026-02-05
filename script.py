@@ -60,7 +60,7 @@ CHK_BES_16 = "#_ctl0_cph_lvwActividades__ctl16_CheckBox1"
 CHK_BES_17 = "#_ctl0_cph_lvwActividades__ctl17_CheckBox1"
 CHK_BES_18 = "#_ctl0_cph_lvwActividades__ctl18_CheckBox1"
 CHK_BES_19 = "#_ctl0_cph_lvwActividades__ctl19_CheckBox1"
-CHK_BES_20 = "#_ctl0_cph_lvwActividades__ctl20
+CHK_BES_20 = "#_ctl0_cph_lvwActividades__ctl20_CheckBox1"
 
 # Safety/timeouts
 DEFAULT_TIMEOUT_MS = 0  # 0 = no timeout, wait indefinitely
