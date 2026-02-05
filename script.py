@@ -33,6 +33,11 @@ CHK_BES_7 = "#_ctl0_cph_lvwActividades__ctl7_CheckBox1"
 CHK_BES_8 = "#_ctl0_cph_lvwActividades__ctl8_CheckBox1"
 CHK_BES_9 = "#_ctl0_cph_lvwActividades__ctl9_CheckBox1"
 CHK_BES_15 = "#_ctl0_cph_lvwActividades__ctl15_CheckBox1"
+CHK_BES_16 = "#_ctl0_cph_lvwActividades__ctl16_CheckBox1"
+CHK_BES_17 = "#_ctl0_cph_lvwActividades__ctl17_CheckBox1"
+CHK_BES_18 = "#_ctl0_cph_lvwActividades__ctl18_CheckBox1"
+CHK_BES_19 = "#_ctl0_cph_lvwActividades__ctl19_CheckBox1"
+CHK_BES_20 = "#_ctl0_cph_lvwActividades__ctl20_CheckBox1"
 CHK_BES_21 = "#_ctl0_cph_lvwActividades__ctl21_CheckBox1"
 
 # HEMOS checkboxes
@@ -49,18 +54,9 @@ CHK_BES2_2 = "#_ctl0_cph_lvwActividades__ctl2_CheckBox1"
 USE_KIOSK_PRINTING = True  # True = no print dialog (prints to default printer)
 PRINT_PAUSE_MS = 4000       # give time for print dialog to appear (if not kiosk)
 USE_XDOTOOL = True          # True = use xdotool to press Enter on print dialog (Linux only)
-USE_PRIVATE_MODE = True     # True = launch in incognito/private mode
 
-PRINT_PA3 = "#_ctl0_cph_lvwActividades__ctl3_CheckBox1"
-CHK_BES_7 = "#_ctl0_cph_lvwActividades__ctl7_CheckBox1"
-CHK_BES_8 = "#_ctl0_cph_lvwActividades__ctl8_CheckBox1"
-CHK_BES_9 = "#_ctl0_cph_lvwActividades__ctl9_CheckBox1"
-CHK_BES_15 = "#_ctl0_cph_lvwActividades__ctl15_CheckBox1"
-CHK_BES_16 = "#_ctl0_cph_lvwActividades__ctl16_CheckBox1"
-CHK_BES_17 = "#_ctl0_cph_lvwActividades__ctl17_CheckBox1"
-CHK_BES_18 = "#_ctl0_cph_lvwActividades__ctl18_CheckBox1"
-CHK_BES_19 = "#_ctl0_cph_lvwActividades__ctl19_CheckBox1"
-CHK_BES_20 = "#_ctl0_cph_lvwActividades__ctl20_CheckBox1"
+# Browser
+USE_PRIVATE_MODE = True     # True = launch in incognito/private mode
 
 # Safety/timeouts
 DEFAULT_TIMEOUT_MS = 0  # 0 = no timeout, wait indefinitely
@@ -544,6 +540,11 @@ def main():
                 safe_check_in_iframe(page, CHK_BES_8, "VentanaModal_1_ifrm")
                 safe_check_in_iframe(page, CHK_BES_9, "VentanaModal_1_ifrm")
                 safe_check_in_iframe(page, CHK_BES_15, "VentanaModal_1_ifrm")
+                safe_check_in_iframe(page, CHK_BES_16, "VentanaModal_1_ifrm")
+                safe_check_in_iframe(page, CHK_BES_17, "VentanaModal_1_ifrm")
+                safe_check_in_iframe(page, CHK_BES_18, "VentanaModal_1_ifrm")
+                safe_check_in_iframe(page, CHK_BES_19, "VentanaModal_1_ifrm")
+                safe_check_in_iframe(page, CHK_BES_20, "VentanaModal_1_ifrm")
                 safe_check_in_iframe(page, CHK_BES_21, "VentanaModal_1_ifrm")
                 
                 # Fill date with selected date
@@ -558,16 +559,10 @@ def main():
                 log("[INFO] Zooming out...")
                 page.keyboard.down("Control")
                 page.keyboard.press("Minus")
-                page.keyboard.up("Control")3, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_7, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_8, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_9, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_15, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_16, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_17, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_18, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_19, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_20ng
+                page.keyboard.up("Control")
+                page.wait_for_timeout(500)
+                
+                # Set up dialog handler for BES booking
                 page.once("dialog", handle_dialog)
                 
                 try:
