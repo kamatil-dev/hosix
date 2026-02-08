@@ -21,26 +21,33 @@ TXT_OBS = "#_ctl0_cph_TxtObservaciones"
 CMD_HORAS = "#_ctl0_cph_cmdHoras"
 
 # Extra booking
-CHK_ACTIVIDAD = "#_ctl0_cph_lvwActividades__ctl2_CheckBox1"
 TXT_FECHA_EXTRA = "#_ctl0_cph_TxtFechaExtra"
 BTN_ADD_CITA_EXTRA = "#_ctl0_cph_CmdAddCitaExtra"
 BLANK_SPACE = "#S_ctl0_cph_GrdBloqueosConsulta"
 BTN_APLICAR = "#_ctl0_cph_CmdAplicar"
 BTN_CERRAR = "#_ctl0_cph_cmdCerrar"
 
+# CYTO checkboxes
+CHK_CYTO = "#_ctl0_cph_lvwActividades__ctl2_CheckBox1"
+
 # BES checkboxes
+# Ionogramme sanguin
 CHK_BES_7 = "#_ctl0_cph_lvwActividades__ctl7_CheckBox1"
 CHK_BES_8 = "#_ctl0_cph_lvwActividades__ctl8_CheckBox1"
 CHK_BES_9 = "#_ctl0_cph_lvwActividades__ctl9_CheckBox1"
 CHK_BES_15 = "#_ctl0_cph_lvwActividades__ctl15_CheckBox1"
+# Bilan hépatique
+CHK_BES_3 = "#_ctl0_cph_lvwActividades__ctl3_CheckBox1"
 CHK_BES_16 = "#_ctl0_cph_lvwActividades__ctl16_CheckBox1"
 CHK_BES_17 = "#_ctl0_cph_lvwActividades__ctl17_CheckBox1"
 CHK_BES_18 = "#_ctl0_cph_lvwActividades__ctl18_CheckBox1"
 CHK_BES_19 = "#_ctl0_cph_lvwActividades__ctl19_CheckBox1"
 CHK_BES_20 = "#_ctl0_cph_lvwActividades__ctl20_CheckBox1"
+# CRP
 CHK_BES_21 = "#_ctl0_cph_lvwActividades__ctl21_CheckBox1"
 
 # HEMOS checkboxes
+# Bilan d'hémostase
 CHK_HEMOS_12 = "#_ctl0_cph_lvwActividades__ctl12_CheckBox1"
 CHK_HEMOS_14 = "#_ctl0_cph_lvwActividades__ctl14_CheckBox1"
 
@@ -49,6 +56,19 @@ CHK_BIM4_7 = "#_ctl0_cph_lvwActividades__ctl7_CheckBox1"
 
 # BES2 checkbox
 CHK_BES2_2 = "#_ctl0_cph_lvwActividades__ctl2_CheckBox1"
+
+# =========================
+# MENU CONFIG
+# =========================
+# Maps user-facing test names to booking codes and checkboxes
+MENU_CONFIG = {
+    "NFS": {"code": "CYTO", "checkboxes": [CHK_CYTO]},
+    "CRP": {"code": "BES", "checkboxes": [CHK_BES_21]},
+    "PCT": {"code": "BIM4", "checkboxes": [CHK_BIM4_7]},
+    "Ionogramme sanguin": {"code": "BES", "checkboxes": [CHK_BES_7, CHK_BES_8, CHK_BES_9, CHK_BES_15]},
+    "Bilan hépatique": {"code": "BES", "checkboxes": [CHK_BES_3, CHK_BES_16, CHK_BES_17, CHK_BES_18, CHK_BES_19, CHK_BES_20]},
+    "Bilan d'hémostase": {"code": "HEMOS", "checkboxes": [CHK_HEMOS_12, CHK_HEMOS_14]},
+}
 
 # Printing
 USE_KIOSK_PRINTING = True  # True = no print dialog (prints to default printer)
@@ -281,6 +301,116 @@ def enter_opens_popup_and_print(page):
         except Exception:
             pass
 
+def compute_booking_plan(selected_items):
+    """Group selected items by booking code and return ordered list of (code, checkboxes) tuples."""
+    code_to_checkboxes = {}
+    code_order = []
+
+    for item in selected_items:
+        config = MENU_CONFIG[item]
+        code = config["code"]
+        if code not in code_to_checkboxes:
+            code_to_checkboxes[code] = []
+            code_order.append(code)
+        code_to_checkboxes[code].extend(config["checkboxes"])
+
+    # Auto-add BES2 if Ionogramme sanguin is selected
+    if "Ionogramme sanguin" in selected_items:
+        code_to_checkboxes["BES2"] = [CHK_BES2_2]
+        code_order.append("BES2")
+
+    return [(code, code_to_checkboxes[code]) for code in code_order]
+
+def handle_print_popup(print_page):
+    """Handle the print popup window."""
+    log(f"[INFO] Popup URL: {print_page.url}")
+    print_page.bring_to_front()
+    print_page.wait_for_load_state("networkidle")
+    print_page.wait_for_load_state("load")
+    print_page.wait_for_timeout(3000)
+
+    log("[INFO] Triggering print dialog via JavaScript...")
+    print_page.evaluate("window.print()")
+
+    if USE_KIOSK_PRINTING:
+        log("[INFO] Kiosk printing enabled - printing directly to default printer...")
+        print_page.wait_for_timeout(3000)
+    elif USE_XDOTOOL:
+        log("[INFO] Using xdotool to confirm print dialog...")
+        print_page.wait_for_timeout(2000)
+        subprocess.run(["xdotool", "key", "Return"], check=False)
+        print_page.wait_for_timeout(2000)
+    else:
+        log("[INFO] Print dialog should be open. Waiting for user to print...")
+        print_page.wait_for_timeout(30000)
+
+def perform_booking(page, context, code, checkboxes, selected_date_08):
+    """Perform a single booking with the given code and checkboxes."""
+    log(f"[INFO] Starting booking ({code})...")
+
+    safe_fill(page, TXT_CONSULTA, code)
+    page.keyboard.press("Enter")
+    safe_fill(page, TXT_OBS, "     ")
+    page.keyboard.press("Enter")
+    safe_click(page, CMD_HORAS)
+    page.wait_for_load_state("networkidle")
+
+    # Check all checkboxes in iframe
+    for chk in checkboxes:
+        safe_check_in_iframe(page, chk, "VentanaModal_1_ifrm")
+
+    # Fill date
+    log(f"[INFO] Setting date: {selected_date_08}")
+    safe_fill_in_iframe(page, TXT_FECHA_EXTRA, selected_date_08, "VentanaModal_1_ifrm")
+
+    # Add cita extra
+    safe_click_in_iframe_by_id(page, BTN_ADD_CITA_EXTRA, "VentanaModal_1_ifrm")
+    page.wait_for_load_state("networkidle")
+
+    # Zoom out
+    log("[INFO] Zooming out...")
+    page.keyboard.down("Control")
+    page.keyboard.press("Minus")
+    page.keyboard.up("Control")
+    page.wait_for_timeout(500)
+
+    # Dialog handler
+    def handle_dialog(dialog):
+        log(f"[INFO] Alert detected: {dialog.message}")
+        dialog.accept()
+
+    page.once("dialog", handle_dialog)
+
+    # Apply and handle print popup
+    print_page = None
+    try:
+        with page.expect_popup(timeout=10000) as popup_info:
+            safe_click_in_iframe_by_id(page, BTN_APLICAR, "VentanaModal_1_ifrm")
+        print_page = popup_info.value
+        handle_print_popup(print_page)
+    except PlaywrightTimeoutError:
+        log(f"[WARNING] No popup detected for {code} booking. Checking for new pages...")
+        pages = context.pages
+        if len(pages) > 1:
+            print_page = pages[-1]
+            handle_print_popup(print_page)
+        else:
+            log("[WARNING] No new page found")
+
+    # Cleanup
+    if print_page:
+        try:
+            print_page.close()
+        except Exception:
+            pass
+
+    page.bring_to_front()
+    page.wait_for_timeout(1000)
+    safe_click_in_iframe_by_id(page, BTN_CERRAR, "VentanaModal_1_ifrm")
+    page.wait_for_load_state("networkidle")
+
+    log(f"[INFO] Booking ({code}) completed.")
+
 # =========================
 # MAIN FLOW
 # =========================
@@ -322,18 +452,18 @@ def get_selected_date():
     return selected.strftime("%d/%m/%Y") + " 08:00:00"
 
 def get_selected_bookings():
-    """Show multi-select menu for booking types."""
-    options = ["CYTO", "BES", "HEMOS", "BIM4", "BES2"]
+    """Show multi-select menu for test types."""
+    options = list(MENU_CONFIG.keys())
     
     print()
-    print("Sélectionnez les types de réservation (Espace pour sélectionner, Entrée pour valider):")
+    print("Sélectionnez les analyses (Espace pour sélectionner, Entrée pour valider):")
     selected = select_multiple(options, tick_character="✓", tick_style="green", cursor_style="cyan")
     
     if not selected:
-        print("[WARNING] Aucune réservation sélectionnée, toutes seront effectuées.")
+        print("[WARNING] Aucune analyse sélectionnée, toutes seront effectuées.")
         return options
     
-    print(f"\n[INFO] Réservations sélectionnées: {', '.join(selected)}")
+    print(f"\n[INFO] Analyses sélectionnées: {', '.join(selected)}")
     return selected
 
 def main():
@@ -409,585 +539,12 @@ def main():
 
             safe_check(page, CHK_MANTENER)
             
-            # ==========================================
-            # FIRST BOOKING: CYTO
-            # ==========================================
-            if "CYTO" in selected_bookings:
-                log("[INFO] Starting first booking (CYTO)...")
-                safe_fill(page, TXT_CONSULTA, "CYTO")
-                page.keyboard.press("Enter")
-                safe_fill(page, TXT_OBS, "     ")
-                page.keyboard.press("Enter")
-                safe_click(page, CMD_HORAS)
-                page.wait_for_load_state("networkidle")
+            # Compute booking plan from selections
+            booking_plan = compute_booking_plan(selected_bookings)
 
-                # activity checkbox + tomorrow 08:00 + add cita + aplicar
-                safe_check_in_iframe(page, CHK_ACTIVIDAD, "VentanaModal_1_ifrm")
-                log(selected_date_08)
-                safe_fill_in_iframe(page, TXT_FECHA_EXTRA, selected_date_08, "VentanaModal_1_ifrm")
-                # page.wait_for_load_state("networkidle")
-                # safe_click_in_iframe_by_id(page, BLANK_SPACE, "VentanaModal_1_ifrm")
-                # page.wait_for_load_state("networkidle")
-                safe_click_in_iframe_by_id(page, BTN_ADD_CITA_EXTRA, "VentanaModal_1_ifrm")
-                page.wait_for_load_state("networkidle")
-                
-                # Zoom out
-                log("[INFO] Zooming out...")
-                page.keyboard.down("Control")
-                page.keyboard.press("Minus")
-                page.keyboard.up("Control")
-                page.wait_for_timeout(500)
-                
-                # Set up dialog handler just before clicking BTN_APLICAR
-                def handle_dialog(dialog):
-                    log(f"[INFO] Alert detected: {dialog.message}")
-                    dialog.accept()
-                
-                page.once("dialog", handle_dialog)
-                
-                try:
-                    with page.expect_popup(timeout=10000) as popup_info:
-                        safe_click_in_iframe_by_id(page, BTN_APLICAR, "VentanaModal_1_ifrm")
-                    
-                    print_page = popup_info.value
-                    pdf_url = print_page.url
-                    log(f"[INFO] Popup PDF URL: {pdf_url}")
-                    log("[INFO] Popup window opened, bringing to front...")
-                    print_page.bring_to_front()
-                    print_page.wait_for_load_state("networkidle")
-                    print_page.wait_for_load_state("load")
-                    print_page.wait_for_timeout(3000)  # Extra time for content rendering
-                    
-                    # Trigger print using JavaScript
-                    log("[INFO] Triggering print dialog via JavaScript...")
-                    print_page.evaluate("window.print()")
-                    
-                    if USE_KIOSK_PRINTING:
-                        log("[INFO] Kiosk printing enabled - printing directly to default printer...")
-                        print_page.wait_for_timeout(3000)
-                    elif USE_XDOTOOL:
-                        log("[INFO] Using xdotool to confirm print dialog...")
-                        print_page.wait_for_timeout(2000)  # Wait for print dialog to appear
-                        subprocess.run(["xdotool", "key", "Return"], check=False)
-                        print_page.wait_for_timeout(2000)
-                    else:
-                        log("[INFO] Print dialog should be open. Waiting for user to print...")
-                        print_page.wait_for_timeout(30000)  # Wait 30 seconds for user to handle print dialog
-                except PlaywrightTimeoutError:
-                    log("[WARNING] No popup detected. Checking for new pages in context...")
-                    # Check if a new page was opened
-                    pages = context.pages
-                    if len(pages) > 1:
-                        print_page = pages[-1]  # Get the last opened page
-                        log(f"[INFO] Found new page: {print_page.url}")
-                        print_page.bring_to_front()
-                        print_page.wait_for_load_state("load")
-                        print_page.wait_for_timeout(3000)
-                        log("[INFO] Triggering print dialog via JavaScript...")
-                        print_page.evaluate("window.print()")
-                        
-                        if USE_KIOSK_PRINTING:
-                            log("[INFO] Kiosk printing enabled - printing directly to default printer...")
-                            print_page.wait_for_timeout(3000)
-                        elif USE_XDOTOOL:
-                            log("[INFO] Using xdotool to confirm print dialog...")
-                            print_page.wait_for_timeout(2000)
-                            subprocess.run(["xdotool", "key", "Return"], check=False)
-                            print_page.wait_for_timeout(2000)
-                        else:
-                            log("[INFO] Print dialog should be open. Waiting for user to print...")
-                            print_page.wait_for_timeout(30000)
-                    else:
-                        log("[WARNING] No new page found")
+            for code, checkboxes in booking_plan:
+                perform_booking(page, context, code, checkboxes, selected_date_08)
 
-                # print_page.close()
-
-                log("[INFO] First booking (CYTO) completed.")
-                
-                # Close print popup and go back to main window
-                try:
-                    print_page.close()
-                except Exception:
-                    pass
-                
-                page.bring_to_front()
-                page.wait_for_timeout(1000)
-                
-                # Click Cerrar button to close modal
-                safe_click_in_iframe_by_id(page, BTN_CERRAR, "VentanaModal_1_ifrm")
-                page.wait_for_load_state("networkidle")
-            
-            # ==========================================
-            # SECOND BOOKING: BES
-            # ==========================================
-            if "BES" in selected_bookings:
-                log("[INFO] Starting second booking (BES)...")
-            
-                # Fill TXT_CONSULTA with "BES"
-                safe_fill(page, TXT_CONSULTA, "BES")
-                page.keyboard.press("Enter")
-                
-                # Fill observation with empty spaces
-                safe_fill(page, TXT_OBS, "     ")
-                page.keyboard.press("Enter")
-                
-                # Click CMD_HORAS to open modal
-                safe_click(page, CMD_HORAS)
-                page.wait_for_load_state("networkidle")
-                
-                # Select BES checkboxes in iframe
-                safe_check_in_iframe(page, CHK_BES_7, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_8, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_9, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_15, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_16, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_17, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_18, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_19, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_20, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_BES_21, "VentanaModal_1_ifrm")
-                
-                # Fill date with selected date
-                log(f"[INFO] Setting date: {selected_date_08}")
-                safe_fill_in_iframe(page, TXT_FECHA_EXTRA, selected_date_08, "VentanaModal_1_ifrm")
-                
-                # Add cita extra
-                safe_click_in_iframe_by_id(page, BTN_ADD_CITA_EXTRA, "VentanaModal_1_ifrm")
-                page.wait_for_load_state("networkidle")
-                
-                # Zoom out
-                log("[INFO] Zooming out...")
-                page.keyboard.down("Control")
-                page.keyboard.press("Minus")
-                page.keyboard.up("Control")
-                page.wait_for_timeout(500)
-                
-                # Set up dialog handler for BES booking
-                page.once("dialog", handle_dialog)
-                
-                try:
-                    with page.expect_popup(timeout=10000) as popup_info:
-                        safe_click_in_iframe_by_id(page, BTN_APLICAR, "VentanaModal_1_ifrm")
-                    
-                    print_page = popup_info.value
-                    pdf_url = print_page.url
-                    log(f"[INFO] Popup PDF URL: {pdf_url}")
-                    log("[INFO] Popup window opened, bringing to front...")
-                    print_page.bring_to_front()
-                    print_page.wait_for_load_state("networkidle")
-                    print_page.wait_for_load_state("load")
-                    print_page.wait_for_timeout(3000)
-                    
-                    # Trigger print using JavaScript
-                    log("[INFO] Triggering print dialog via JavaScript...")
-                    print_page.evaluate("window.print()")
-                    
-                    if USE_KIOSK_PRINTING:
-                        log("[INFO] Kiosk printing enabled - printing directly to default printer...")
-                        print_page.wait_for_timeout(3000)
-                    elif USE_XDOTOOL:
-                        log("[INFO] Using xdotool to confirm print dialog...")
-                        print_page.wait_for_timeout(2000)
-                        subprocess.run(["xdotool", "key", "Return"], check=False)
-                        print_page.wait_for_timeout(2000)
-                    else:
-                        log("[INFO] Print dialog should be open. Waiting for user to print...")
-                        print_page.wait_for_timeout(30000)
-                        
-                    # Close print popup
-                    try:
-                        print_page.close()
-                    except Exception:
-                        pass
-                except PlaywrightTimeoutError:
-                    log("[WARNING] No popup detected for BES booking. Checking for new pages in context...")
-                    pages = context.pages
-                    if len(pages) > 1:
-                        print_page = pages[-1]
-                        log(f"[INFO] Found new page: {print_page.url}")
-                        print_page.bring_to_front()
-                        print_page.wait_for_load_state("load")
-                        print_page.wait_for_timeout(3000)
-                        log("[INFO] Triggering print dialog via JavaScript...")
-                        print_page.evaluate("window.print()")
-                        
-                        if USE_KIOSK_PRINTING:
-                            log("[INFO] Kiosk printing enabled - printing directly to default printer...")
-                            print_page.wait_for_timeout(3000)
-                        elif USE_XDOTOOL:
-                            log("[INFO] Using xdotool to confirm print dialog...")
-                            print_page.wait_for_timeout(2000)
-                            subprocess.run(["xdotool", "key", "Return"], check=False)
-                            print_page.wait_for_timeout(2000)
-                        else:
-                            log("[INFO] Print dialog should be open. Waiting for user to print...")
-                            print_page.wait_for_timeout(30000)
-                            
-                        try:
-                            print_page.close()
-                        except Exception:
-                            pass
-                    else:
-                        log("[WARNING] No new page found")
-
-                log("[INFO] Second booking (BES) completed.")
-                
-                # Close print popup and go back to main window
-                try:
-                    print_page.close()
-                except Exception:
-                    pass
-                
-                page.bring_to_front()
-                page.wait_for_timeout(1000)
-                
-                # Click Cerrar button to close modal
-                safe_click_in_iframe_by_id(page, BTN_CERRAR, "VentanaModal_1_ifrm")
-                page.wait_for_load_state("networkidle")
-
-            # ==========================================
-            # THIRD BOOKING: HEMOS
-            # ==========================================
-            if "HEMOS" in selected_bookings:
-                log("[INFO] Starting third booking (HEMOS)...")
-            
-                # Fill TXT_CONSULTA with "HEMOS"
-                safe_fill(page, TXT_CONSULTA, "HEMOS")
-                page.keyboard.press("Enter")
-                
-                # Fill observation with empty spaces
-                safe_fill(page, TXT_OBS, "     ")
-                page.keyboard.press("Enter")
-                
-                # Click CMD_HORAS to open modal
-                safe_click(page, CMD_HORAS)
-                page.wait_for_load_state("networkidle")
-                
-                # Select HEMOS checkboxes in iframe
-                safe_check_in_iframe(page, CHK_HEMOS_12, "VentanaModal_1_ifrm")
-                safe_check_in_iframe(page, CHK_HEMOS_14, "VentanaModal_1_ifrm")
-                
-                # Fill date with selected date
-                log(f"[INFO] Setting date: {selected_date_08}")
-                safe_fill_in_iframe(page, TXT_FECHA_EXTRA, selected_date_08, "VentanaModal_1_ifrm")
-                
-                # Add cita extra
-                safe_click_in_iframe_by_id(page, BTN_ADD_CITA_EXTRA, "VentanaModal_1_ifrm")
-                page.wait_for_load_state("networkidle")
-                
-                # Zoom out
-                log("[INFO] Zooming out...")
-                page.keyboard.down("Control")
-                page.keyboard.press("Minus")
-                page.keyboard.up("Control")
-                page.wait_for_timeout(500)
-                
-                # Set up dialog handler for HEMOS booking
-                page.once("dialog", handle_dialog)
-                
-                try:
-                    with page.expect_popup(timeout=10000) as popup_info:
-                        safe_click_in_iframe_by_id(page, BTN_APLICAR, "VentanaModal_1_ifrm")
-                    
-                    print_page = popup_info.value
-                    pdf_url = print_page.url
-                    log(f"[INFO] Popup PDF URL: {pdf_url}")
-                    log("[INFO] Popup window opened, bringing to front...")
-                    print_page.bring_to_front()
-                    print_page.wait_for_load_state("networkidle")
-                    print_page.wait_for_load_state("load")
-                    print_page.wait_for_timeout(3000)
-                    
-                    # Trigger print using JavaScript
-                    log("[INFO] Triggering print dialog via JavaScript...")
-                    print_page.evaluate("window.print()")
-                    
-                    if USE_KIOSK_PRINTING:
-                        log("[INFO] Kiosk printing enabled - printing directly to default printer...")
-                        print_page.wait_for_timeout(3000)
-                    elif USE_XDOTOOL:
-                        log("[INFO] Using xdotool to confirm print dialog...")
-                        print_page.wait_for_timeout(2000)
-                        subprocess.run(["xdotool", "key", "Return"], check=False)
-                        print_page.wait_for_timeout(2000)
-                    else:
-                        log("[INFO] Print dialog should be open. Waiting for user to print...")
-                        print_page.wait_for_timeout(30000)
-                        
-                    # Close print popup
-                    try:
-                        print_page.close()
-                    except Exception:
-                        pass
-                except PlaywrightTimeoutError:
-                    log("[WARNING] No popup detected for HEMOS booking. Checking for new pages in context...")
-                    pages = context.pages
-                    if len(pages) > 1:
-                        print_page = pages[-1]
-                        log(f"[INFO] Found new page: {print_page.url}")
-                        print_page.bring_to_front()
-                        print_page.wait_for_load_state("load")
-                        print_page.wait_for_timeout(3000)
-                        log("[INFO] Triggering print dialog via JavaScript...")
-                        print_page.evaluate("window.print()")
-                    
-                        if USE_KIOSK_PRINTING:
-                            log("[INFO] Kiosk printing enabled - printing directly to default printer...")
-                            print_page.wait_for_timeout(3000)
-                        elif USE_XDOTOOL:
-                            log("[INFO] Using xdotool to confirm print dialog...")
-                            print_page.wait_for_timeout(2000)
-                            subprocess.run(["xdotool", "key", "Return"], check=False)
-                            print_page.wait_for_timeout(2000)
-                        else:
-                            log("[INFO] Print dialog should be open. Waiting for user to print...")
-                            print_page.wait_for_timeout(30000)
-                            
-                        try:
-                            print_page.close()
-                        except Exception:
-                            pass
-                    else:
-                        log("[WARNING] No new page found")
-
-                log("[INFO] Third booking (HEMOS) completed.")
-                
-                # Close print popup and go back to main window
-                try:
-                    print_page.close()
-                except Exception:
-                    pass
-                
-                page.bring_to_front()
-                page.wait_for_timeout(1000)
-                
-                # Click Cerrar button to close modal
-                safe_click_in_iframe_by_id(page, BTN_CERRAR, "VentanaModal_1_ifrm")
-                page.wait_for_load_state("networkidle")
-
-            # ==========================================
-            # FOURTH BOOKING: BIM4
-            # ==========================================
-            if "BIM4" in selected_bookings:
-                log("[INFO] Starting fourth booking (BIM4)...")
-            
-                # Fill TXT_CONSULTA with "BIM4"
-                safe_fill(page, TXT_CONSULTA, "BIM4")
-                page.keyboard.press("Enter")
-                
-                # Fill observation with empty spaces
-                safe_fill(page, TXT_OBS, "     ")
-                page.keyboard.press("Enter")
-                
-                # Click CMD_HORAS to open modal
-                safe_click(page, CMD_HORAS)
-                page.wait_for_load_state("networkidle")
-                
-                # Select BIM4 checkbox in iframe
-                safe_check_in_iframe(page, CHK_BIM4_7, "VentanaModal_1_ifrm")
-                
-                # Fill date with selected date
-                log(f"[INFO] Setting date: {selected_date_08}")
-                safe_fill_in_iframe(page, TXT_FECHA_EXTRA, selected_date_08, "VentanaModal_1_ifrm")
-                
-                # Add cita extra
-                safe_click_in_iframe_by_id(page, BTN_ADD_CITA_EXTRA, "VentanaModal_1_ifrm")
-                page.wait_for_load_state("networkidle")
-                
-                # Zoom out
-                log("[INFO] Zooming out...")
-                page.keyboard.down("Control")
-                page.keyboard.press("Minus")
-                page.keyboard.up("Control")
-                page.wait_for_timeout(500)
-                
-                # Set up dialog handler for BIM4 booking
-                page.once("dialog", handle_dialog)
-                
-                try:
-                    with page.expect_popup(timeout=10000) as popup_info:
-                        safe_click_in_iframe_by_id(page, BTN_APLICAR, "VentanaModal_1_ifrm")
-                    
-                    print_page = popup_info.value
-                    pdf_url = print_page.url
-                    log(f"[INFO] Popup PDF URL: {pdf_url}")
-                    log("[INFO] Popup window opened, bringing to front...")
-                    print_page.bring_to_front()
-                    print_page.wait_for_load_state("networkidle")
-                    print_page.wait_for_load_state("load")
-                    print_page.wait_for_timeout(3000)
-                    
-                    # Trigger print using JavaScript
-                    log("[INFO] Triggering print dialog via JavaScript...")
-                    print_page.evaluate("window.print()")
-                    
-                    if USE_KIOSK_PRINTING:
-                        log("[INFO] Kiosk printing enabled - printing directly to default printer...")
-                        print_page.wait_for_timeout(3000)
-                    elif USE_XDOTOOL:
-                        log("[INFO] Using xdotool to confirm print dialog...")
-                        print_page.wait_for_timeout(2000)
-                        subprocess.run(["xdotool", "key", "Return"], check=False)
-                        print_page.wait_for_timeout(2000)
-                    else:
-                        log("[INFO] Print dialog should be open. Waiting for user to print...")
-                        print_page.wait_for_timeout(30000)
-                        
-                    # Close print popup
-                    try:
-                        print_page.close()
-                    except Exception:
-                        pass
-                except PlaywrightTimeoutError:
-                    log("[WARNING] No popup detected for BIM4 booking. Checking for new pages in context...")
-                    pages = context.pages
-                    if len(pages) > 1:
-                        print_page = pages[-1]
-                        log(f"[INFO] Found new page: {print_page.url}")
-                        print_page.bring_to_front()
-                        print_page.wait_for_load_state("load")
-                        print_page.wait_for_timeout(3000)
-                        log("[INFO] Triggering print dialog via JavaScript...")
-                        print_page.evaluate("window.print()")
-                        
-                        if USE_KIOSK_PRINTING:
-                            log("[INFO] Kiosk printing enabled - printing directly to default printer...")
-                            print_page.wait_for_timeout(3000)
-                        elif USE_XDOTOOL:
-                            log("[INFO] Using xdotool to confirm print dialog...")
-                            print_page.wait_for_timeout(2000)
-                            subprocess.run(["xdotool", "key", "Return"], check=False)
-                            print_page.wait_for_timeout(2000)
-                        else:
-                            log("[INFO] Print dialog should be open. Waiting for user to print...")
-                            print_page.wait_for_timeout(30000)
-                            
-                        try:
-                            print_page.close()
-                        except Exception:
-                            pass
-                    else:
-                        log("[WARNING] No new page found")
-
-                log("[INFO] Fourth booking (BIM4) completed.")
-                
-                # Close print popup and go back to main window
-                try:
-                    print_page.close()
-                except Exception:
-                    pass
-                
-                page.bring_to_front()
-                page.wait_for_timeout(1000)
-                
-                # Click Cerrar button to close modal
-                safe_click_in_iframe_by_id(page, BTN_CERRAR, "VentanaModal_1_ifrm")
-                page.wait_for_load_state("networkidle")
-
-            # ==========================================
-            # FIFTH BOOKING: BES2
-            # ==========================================
-            if "BES2" in selected_bookings:
-                log("[INFO] Starting fifth booking (BES2)...")
-                safe_fill(page, TXT_CONSULTA, "BES2")
-                page.keyboard.press("Enter")
-                
-                # Fill observation with empty spaces
-                safe_fill(page, TXT_OBS, "     ")
-                page.keyboard.press("Enter")
-                
-                # Click CMD_HORAS to open modal
-                safe_click(page, CMD_HORAS)
-                page.wait_for_load_state("networkidle")
-                
-                # Select BES2 checkbox in iframe
-                safe_check_in_iframe(page, CHK_BES2_2, "VentanaModal_1_ifrm")
-                
-                # Fill date with selected date
-                log(f"[INFO] Setting date: {selected_date_08}")
-                safe_fill_in_iframe(page, TXT_FECHA_EXTRA, selected_date_08, "VentanaModal_1_ifrm")
-                
-                # Add cita extra
-                safe_click_in_iframe_by_id(page, BTN_ADD_CITA_EXTRA, "VentanaModal_1_ifrm")
-                page.wait_for_load_state("networkidle")
-                
-                # Zoom out
-                log("[INFO] Zooming out...")
-                page.keyboard.down("Control")
-                page.keyboard.press("Minus")
-                page.keyboard.up("Control")
-                page.wait_for_timeout(500)
-                
-                # Set up dialog handler for BES2 booking
-                page.once("dialog", handle_dialog)
-                
-                try:
-                    with page.expect_popup(timeout=10000) as popup_info:
-                        safe_click_in_iframe_by_id(page, BTN_APLICAR, "VentanaModal_1_ifrm")
-                    
-                    print_page = popup_info.value
-                    pdf_url = print_page.url
-                    log(f"[INFO] Popup PDF URL: {pdf_url}")
-                    log("[INFO] Popup window opened, bringing to front...")
-                    print_page.bring_to_front()
-                    print_page.wait_for_load_state("networkidle")
-                    print_page.wait_for_load_state("load")
-                    print_page.wait_for_timeout(3000)
-                    
-                    # Trigger print using JavaScript
-                    log("[INFO] Triggering print dialog via JavaScript...")
-                    print_page.evaluate("window.print()")
-                    
-                    if USE_KIOSK_PRINTING:
-                        log("[INFO] Kiosk printing enabled - printing directly to default printer...")
-                        print_page.wait_for_timeout(3000)
-                    elif USE_XDOTOOL:
-                        log("[INFO] Using xdotool to confirm print dialog...")
-                        print_page.wait_for_timeout(2000)
-                        subprocess.run(["xdotool", "key", "Return"], check=False)
-                        print_page.wait_for_timeout(2000)
-                    else:
-                        log("[INFO] Print dialog should be open. Waiting for user to print...")
-                        print_page.wait_for_timeout(30000)
-                        
-                    # Close print popup
-                    try:
-                        print_page.close()
-                    except Exception:
-                        pass
-                except PlaywrightTimeoutError:
-                    log("[WARNING] No popup detected for BES2 booking. Checking for new pages in context...")
-                    pages = context.pages
-                    if len(pages) > 1:
-                        print_page = pages[-1]
-                        log(f"[INFO] Found new page: {print_page.url}")
-                        print_page.bring_to_front()
-                        print_page.wait_for_load_state("load")
-                        print_page.wait_for_timeout(3000)
-                        log("[INFO] Triggering print dialog via JavaScript...")
-                        print_page.evaluate("window.print()")
-                        
-                        if USE_KIOSK_PRINTING:
-                            log("[INFO] Kiosk printing enabled - printing directly to default printer...")
-                            print_page.wait_for_timeout(3000)
-                        elif USE_XDOTOOL:
-                            log("[INFO] Using xdotool to confirm print dialog...")
-                            print_page.wait_for_timeout(2000)
-                            subprocess.run(["xdotool", "key", "Return"], check=False)
-                            print_page.wait_for_timeout(2000)
-                        else:
-                            log("[INFO] Print dialog should be open. Waiting for user to print...")
-                            print_page.wait_for_timeout(30000)
-                            
-                        try:
-                            print_page.close()
-                        except Exception:
-                            pass
-                    else:
-                        log("[WARNING] No new page found")
-
-                log("[INFO] Fifth booking (BES2) completed.")
-            
             print(f"[INFO] IPP {current_ipp} terminé avec succès!")
 
         print(f"\n{'='*50}")
