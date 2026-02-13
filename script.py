@@ -436,13 +436,15 @@ def get_selected_date():
     today = date.today()
     tomorrow = today + timedelta(days=1)
     after_tomorrow = today + timedelta(days=2)
-    
+    after_after_tomorrow = today + timedelta(days=3)
+
     options = [
         f"Aujourd'hui     ({today.strftime('%d/%m/%Y')})",
         f"Demain          ({tomorrow.strftime('%d/%m/%Y')})",
         f"Après-demain    ({after_tomorrow.strftime('%d/%m/%Y')})",
+        f"Après après-demain    ({after_after_tomorrow.strftime('%d/%m/%Y')})",
     ]
-    dates = [today, tomorrow, after_tomorrow]
+    dates = [today, tomorrow, after_tomorrow, after_after_tomorrow]
     
     print()
     print("Sélectionnez la date de rendez-vous:")
