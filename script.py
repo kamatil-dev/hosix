@@ -1,11 +1,10 @@
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from datetime import datetime, date, timedelta
 from beaupy import select, select_multiple
-import getpass
 import re
 import os
 import subprocess
-import urllib.request
+import time
 
 # =========================
 # CONFIG
@@ -48,6 +47,7 @@ CHK_BES_21 = "#_ctl0_cph_lvwActividades__ctl21_CheckBox1"
 
 # HEMOS checkboxes
 # Bilan d'hémostase
+CHK_HEMOS_11 = "#_ctl0_cph_lvwActividades__ctl11_CheckBox1"
 CHK_HEMOS_12 = "#_ctl0_cph_lvwActividades__ctl12_CheckBox1"
 CHK_HEMOS_14 = "#_ctl0_cph_lvwActividades__ctl14_CheckBox1"
 
@@ -67,7 +67,7 @@ MENU_CONFIG = {
     "PCT": {"code": "BIM4", "checkboxes": [CHK_BIM4_7]},
     "Ionogramme sanguin": {"code": "BES", "checkboxes": [CHK_BES_7, CHK_BES_8, CHK_BES_9, CHK_BES_15]},
     "Bilan hépatique": {"code": "BES", "checkboxes": [CHK_BES_3, CHK_BES_16, CHK_BES_17, CHK_BES_18, CHK_BES_19, CHK_BES_20]},
-    "Bilan d'hémostase": {"code": "HEMOS", "checkboxes": [CHK_HEMOS_12, CHK_HEMOS_14]},
+    "Bilan d'hémostase": {"code": "HEMOS", "checkboxes": [CHK_HEMOS_11, CHK_HEMOS_12, CHK_HEMOS_14]},
 }
 
 # Printing
@@ -350,6 +350,7 @@ def perform_booking(page, context, code, checkboxes, selected_date_08):
 
     safe_fill(page, TXT_CONSULTA, code)
     page.keyboard.press("Enter")
+    time.sleep(2)
     safe_fill(page, TXT_OBS, "     ")
     page.keyboard.press("Enter")
     safe_click(page, CMD_HORAS)
@@ -445,7 +446,7 @@ def get_selected_date():
     
     print()
     print("Sélectionnez la date de rendez-vous:")
-    choice = select(options, cursor=">", cursor_style="cyan")
+    choice = select(options)
     
     selected = dates[options.index(choice)]
     print(f"\n[INFO] Date sélectionnée: {selected.strftime('%d/%m/%Y')}")
@@ -457,7 +458,7 @@ def get_selected_bookings():
     
     print()
     print("Sélectionnez les analyses (Espace pour sélectionner, Entrée pour valider):")
-    selected = select_multiple(options, tick_character="✓", tick_style="green", cursor_style="cyan")
+    selected = select_multiple(options)
     
     if not selected:
         print("[WARNING] Aucune analyse sélectionnée, toutes seront effectuées.")
@@ -489,8 +490,6 @@ def main():
     username = "KAMAHTIL"
     # password = getpass.getpass("Password: ")
     password = "140221"
-
-    yesterday = date.today() - timedelta(days=1)
 
     with sync_playwright() as p:
         launch_args = []
@@ -532,7 +531,18 @@ def main():
 
             safe_fill(page, TXT_IPP, current_ipp)
             page.wait_for_load_state("networkidle")
-            
+
+            # Close popup window if it appears after entering IPP
+            try:
+                popup_header = page.wait_for_selector(".x-window-header-body", timeout=3000)
+                if popup_header:
+                    log("[INFO] Popup détecté après saisie IPP, fermeture...")
+                    close_btn = page.locator(".x-window-header-body > div > div > div:last-child")
+                    close_btn.click()
+                    page.wait_for_timeout(500)
+            except PlaywrightTimeoutError:
+                log("[INFO] Pas de popup détecté après saisie IPP.")
+
             page.keyboard.press("Escape")
             page.keyboard.press("Enter")
             page.keyboard.press("Escape")
@@ -550,10 +560,22 @@ def main():
         print(f"\n{'='*50}")
         print(f"[INFO] Tous les {len(ipp_list)} IPP ont été traités!")
         print(f"{'='*50}")
-        print("[INFO] Script terminé. Appuyez sur Ctrl+C pour arrêter.")
-        page.wait_for_timeout(10**9)
 
         browser.close()
+        log("[INFO] Navigateur fermé.")
+
+        return True  # Signal success
 
 if __name__ == "__main__":
-    main()
+    while True:
+        result = main()
+        print()
+        print("Que souhaitez-vous faire ?")
+        choice = select(
+            ["Relancer le script", "Quitter"]
+        )
+        if choice == "Quitter":
+            print("\n[INFO] Au revoir!")
+            break
+        else:
+            clear_console()
