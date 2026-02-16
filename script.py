@@ -162,37 +162,6 @@ def try_click(page, selector: str, timeout_ms: int = None):
         log(f"[INFO] Element {selector} not found, continuing...")
         return False
 
-def _click_tool_1031_once(page) -> bool:
-    """Try clicking #tool-1031 in page or any iframe once. Returns True if clicked."""
-    try:
-        if page.evaluate(
-            "(() => {const el = document.getElementById('tool-1031'); if (!el) return false; el.click(); return true;})()"
-        ):
-            return True
-    except Exception:
-        pass
-
-    for frame in page.frames:
-        try:
-            if frame.evaluate(
-                "(() => {const el = document.getElementById('tool-1031'); if (!el) return false; el.click(); return true;})()"
-            ):
-                return True
-        except Exception:
-            continue
-
-    return False
-
-def try_click_tool_1031(page, timeout_ms: int = 5000) -> bool:
-    """Poll for #tool-1031 and click it when it appears."""
-    deadline = time.time() + (timeout_ms / 1000)
-    while time.time() < deadline:
-        if _click_tool_1031_once(page):
-            return True
-        time.sleep(0.2)
-    log("[INFO] Element #tool-1031 not found, continuing...")
-    return False
-
 def safe_click_in_iframe(page, selector: str):
     """Click element inside an iframe within #panelDatos-body"""
     try:
@@ -468,15 +437,13 @@ def get_selected_date():
     today = date.today()
     tomorrow = today + timedelta(days=1)
     after_tomorrow = today + timedelta(days=2)
-    after_after_tomorrow = today + timedelta(days=3)
-
+    
     options = [
         f"Aujourd'hui     ({today.strftime('%d/%m/%Y')})",
         f"Demain          ({tomorrow.strftime('%d/%m/%Y')})",
         f"Après-demain    ({after_tomorrow.strftime('%d/%m/%Y')})",
-        f"Après après-demain    ({after_after_tomorrow.strftime('%d/%m/%Y')})",
     ]
-    dates = [today, tomorrow, after_tomorrow, after_after_tomorrow]
+    dates = [today, tomorrow, after_tomorrow]
     
     print()
     print("Sélectionnez la date de rendez-vous:")
@@ -565,10 +532,6 @@ def main():
 
             safe_fill(page, TXT_IPP, current_ipp)
             page.wait_for_load_state("networkidle")
-            page.keyboard.press("Escape")
-
-            # Optional click if the tool button appears after typing IPP
-            try_click_tool_1031(page, timeout_ms=6000)
 
             # Close popup window if it appears after entering IPP
             try:
@@ -586,6 +549,9 @@ def main():
             page.keyboard.press("Escape")
 
             safe_check(page, CHK_MANTENER)
+            
+            # Optional click if the tool button appears after typing IPP
+            try_click(page, BTN_TOOL_1031, timeout_ms=3000)
             
             # Compute booking plan from selections
             booking_plan = compute_booking_plan(selected_bookings)
