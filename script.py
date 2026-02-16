@@ -348,6 +348,10 @@ def handle_print_popup(print_page):
 def perform_booking(page, context, code, checkboxes, selected_date_08):
     """Perform a single booking with the given code and checkboxes."""
     log(f"[INFO] Starting booking ({code})...")
+    
+    page.keyboard.press("Escape")
+    # Optional click if the tool button appears after typing IPP
+    try_click(page, BTN_TOOL_1031, timeout_ms=3000)
 
     safe_fill(page, TXT_CONSULTA, code)
     page.keyboard.press("Enter")
@@ -534,10 +538,6 @@ def main():
 
             safe_fill(page, TXT_IPP, current_ipp)
             page.wait_for_load_state("networkidle")
-
-            page.keyboard.press("Escape")
-            # Optional click if the tool button appears after typing IPP
-            try_click(page, BTN_TOOL_1031, timeout_ms=3000)
 
             # Close popup window if it appears after entering IPP
             try:
