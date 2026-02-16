@@ -535,6 +535,7 @@ def main():
             safe_fill(page, TXT_IPP, current_ipp)
             page.wait_for_load_state("networkidle")
 
+            page.keyboard.press("Escape")
             # Optional click if the tool button appears after typing IPP
             try_click(page, BTN_TOOL_1031, timeout_ms=3000)
 
