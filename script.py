@@ -25,6 +25,7 @@ BTN_ADD_CITA_EXTRA = "#_ctl0_cph_CmdAddCitaExtra"
 BLANK_SPACE = "#S_ctl0_cph_GrdBloqueosConsulta"
 BTN_APLICAR = "#_ctl0_cph_CmdAplicar"
 BTN_CERRAR = "#_ctl0_cph_cmdCerrar"
+BTN_TOOL_1031 = "#tool-1031"
 
 # CYTO checkboxes
 CHK_CYTO = "#_ctl0_cph_lvwActividades__ctl2_CheckBox1"
@@ -533,6 +534,9 @@ def main():
 
             safe_fill(page, TXT_IPP, current_ipp)
             page.wait_for_load_state("networkidle")
+
+            # Optional click if the tool button appears after typing IPP
+            try_click(page, BTN_TOOL_1031, timeout_ms=3000)
 
             # Close popup window if it appears after entering IPP
             try:
