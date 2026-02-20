@@ -8,6 +8,7 @@
 # CONFIGURATION - Set your GitHub raw URL here
 # ============================================
 GITHUB_RAW_URL="https://raw.githubusercontent.com/kamatil-dev/hosix/main/script.py"
+RUN_SH_URL="https://raw.githubusercontent.com/kamatil-dev/hosix/main/run.sh"
 
 # Change to script directory
 cd "$(dirname "$0")"
@@ -139,24 +140,48 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Update script from GitHub
+# Update script and launcher from GitHub
 echo ""
-echo "[5/5] Checking for script updates..."
+echo "[5/5] Checking for updates..."
 if command_exists curl; then
     if curl -fsSL -H "Cache-Control: no-cache, no-store" -H "Pragma: no-cache" "$GITHUB_RAW_URL" -o script.py.tmp 2>/dev/null; then
         mv script.py.tmp script.py
         echo "Script updated successfully!"
     else
-        echo "Update check failed, using local version."
+        echo "Script update check failed, using local version."
         rm -f script.py.tmp
+    fi
+    if [ -z "$_HOSIX_LAUNCHER_UPDATED" ]; then
+        if curl -fsSL -H "Cache-Control: no-cache, no-store" -H "Pragma: no-cache" "$RUN_SH_URL" -o run.sh.tmp 2>/dev/null; then
+            chmod +x run.sh.tmp
+            mv run.sh.tmp run.sh
+            echo "Launcher updated! Restarting with new version..."
+            export _HOSIX_LAUNCHER_UPDATED=1
+            exec bash ./run.sh
+        else
+            echo "Launcher update check failed, using local version."
+            rm -f run.sh.tmp
+        fi
     fi
 elif command_exists wget; then
     if wget -q --no-cache "$GITHUB_RAW_URL" -O script.py.tmp 2>/dev/null; then
         mv script.py.tmp script.py
         echo "Script updated successfully!"
     else
-        echo "Update check failed, using local version."
+        echo "Script update check failed, using local version."
         rm -f script.py.tmp
+    fi
+    if [ -z "$_HOSIX_LAUNCHER_UPDATED" ]; then
+        if wget -q --no-cache "$RUN_SH_URL" -O run.sh.tmp 2>/dev/null; then
+            chmod +x run.sh.tmp
+            mv run.sh.tmp run.sh
+            echo "Launcher updated! Restarting with new version..."
+            export _HOSIX_LAUNCHER_UPDATED=1
+            exec bash ./run.sh
+        else
+            echo "Launcher update check failed, using local version."
+            rm -f run.sh.tmp
+        fi
     fi
 else
     echo "Neither curl nor wget found, skipping update check."
