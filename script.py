@@ -433,25 +433,71 @@ def get_ipp_list():
     return ipp_list
 
 def get_selected_date():
-    """Show date selection menu and return selected date."""
+    """Show date selection menu and return selected date as dd/mm/yyyy string."""
     today = date.today()
     tomorrow = today + timedelta(days=1)
-    after_tomorrow = today + timedelta(days=2)
-    
+
     options = [
         f"Aujourd'hui     ({today.strftime('%d/%m/%Y')})",
         f"Demain          ({tomorrow.strftime('%d/%m/%Y')})",
-        f"Après-demain    ({after_tomorrow.strftime('%d/%m/%Y')})",
+        "Personnalisé    (saisir la date)",
     ]
-    dates = [today, tomorrow, after_tomorrow]
-    
+    dates = [today, tomorrow, None]
+
     print()
     print("Sélectionnez la date de rendez-vous:")
     choice = select(options)
-    
-    selected = dates[options.index(choice)]
+    idx = options.index(choice)
+
+    if dates[idx] is not None:
+        selected = dates[idx]
+    else:
+        while True:
+            raw = input("Entrez la date (dd/mm/yyyy): ")
+            try:
+                selected = parse_ddmmyyyy_strict(raw)
+                break
+            except ValueError:
+                print("[ERREUR] Format invalide. Veuillez utiliser dd/mm/yyyy.")
+
     print(f"\n[INFO] Date sélectionnée: {selected.strftime('%d/%m/%Y')}")
-    return selected.strftime("%d/%m/%Y") + " 08:00:00"
+    return selected.strftime("%d/%m/%Y")
+
+
+def get_selected_hour():
+    """Show hour selection menu and return selected time as HH:MM:SS string."""
+    PRESET_HOURS = ["06:00", "08:00", "09:00"]
+    CUSTOM_LABEL = "Personnalisé    (saisir l'heure)"
+    NOW_IDX = 0
+
+    now_display = datetime.now().strftime("%H:%M")
+    options = [
+        f"Maintenant      ({now_display})",
+        *PRESET_HOURS,
+        CUSTOM_LABEL,
+    ]
+
+    print()
+    print("Sélectionnez l'heure de rendez-vous:")
+    choice = select(options)
+    idx = options.index(choice)
+
+    if idx == NOW_IDX:
+        selected_time = datetime.now().strftime("%H:%M:%S")
+    elif choice == CUSTOM_LABEL:
+        while True:
+            raw = input("Entrez l'heure (HH:MM): ").strip()
+            try:
+                parsed = datetime.strptime(raw, "%H:%M")
+                selected_time = parsed.strftime("%H:%M:%S")
+                break
+            except ValueError:
+                print("[ERREUR] Format invalide. Veuillez utiliser HH:MM.")
+    else:
+        selected_time = choice + ":00"
+
+    print(f"\n[INFO] Heure sélectionnée: {selected_time}")
+    return selected_time
 
 def get_selected_bookings():
     """Show multi-select menu for test types."""
@@ -481,8 +527,12 @@ def main():
     print(f"\n[INFO] {len(ipp_list)} IPP à traiter: {', '.join(ipp_list)}")
     
     # Get selected date from user
-    selected_date_08 = get_selected_date()
-    
+    selected_date = get_selected_date()
+
+    # Get selected hour from user
+    selected_hour = get_selected_hour()
+    selected_date_08 = f"{selected_date} {selected_hour}"
+
     # Get selected booking types from user
     selected_bookings = get_selected_bookings()
     print()
