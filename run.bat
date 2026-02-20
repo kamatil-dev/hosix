@@ -11,6 +11,7 @@ REM ============================================
 REM CONFIGURATION - Set your GitHub raw URL here
 REM ============================================
 set "GITHUB_RAW_URL=https://raw.githubusercontent.com/kamatil-dev/hosix/main/script.py"
+set "RUN_BAT_URL=https://raw.githubusercontent.com/kamatil-dev/hosix/main/run.bat"
 
 echo.
 echo ========================================
@@ -42,6 +43,22 @@ if %errorlevel% neq 0 (
         )
     )
     
+    echo.
+    echo [INFO] winget not available. Trying direct download from python.org...
+    set "PY_INSTALLER=%TEMP%\python_installer.exe"
+    powershell -Command "try { Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe' -OutFile '%PY_INSTALLER%' -UseBasicParsing; Write-Host 'Downloaded.' } catch { Write-Host 'Download failed.'; exit 1 }"
+    if exist "%PY_INSTALLER%" (
+        echo Running Python installer silently...
+        "%PY_INSTALLER%" /quiet InstallAllUsers=0 PrependPath=1 Include_pip=1
+        del "%PY_INSTALLER%" >nul 2>&1
+        echo.
+        echo [SUCCESS] Python installed successfully!
+        echo [INFO] Please close this window and run the script again.
+        echo         This is needed to refresh the PATH environment variable.
+        echo.
+        pause
+        exit /b 0
+    )
     echo.
     echo [ERROR] Automatic installation failed!
     echo.
@@ -99,10 +116,11 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-REM Update script from GitHub
+REM Update script and launcher from GitHub
 echo.
-echo [5/5] Checking for script updates...
-    powershell -Command "try { Invoke-WebRequest -Uri '%GITHUB_RAW_URL%' -OutFile 'script.py.tmp' -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'}; Move-Item -Force 'script.py.tmp' 'script.py'; Write-Host 'Script updated successfully!' } catch { Write-Host 'Update check failed, using local version.' }"
+echo [5/5] Checking for updates...
+    powershell -Command "try { Invoke-WebRequest -Uri '%GITHUB_RAW_URL%' -OutFile 'script.py.tmp' -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'}; Move-Item -Force 'script.py.tmp' 'script.py'; Write-Host 'Script updated successfully!' } catch { Write-Host 'Script update check failed, using local version.' }"
+    powershell -Command "try { Invoke-WebRequest -Uri '%RUN_BAT_URL%' -OutFile 'run.bat.new' -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'}; Write-Host 'Launcher update downloaded.' } catch { Write-Host 'Launcher update check failed, using local version.' }"
 
 echo.
 echo ========================================
@@ -113,6 +131,16 @@ echo.
 REM Run the script
 python script.py
 set exit_code=%errorlevel%
+
+REM Apply launcher update now that python has exited (safe to replace run.bat here)
+if exist run.bat.new (
+    move /y run.bat.new run.bat >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo [INFO] Launcher updated. Changes take effect on next run.
+    ) else (
+        del run.bat.new >nul 2>&1
+    )
+)
 
 echo.
 if %exit_code% neq 0 (
