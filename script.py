@@ -69,6 +69,7 @@ MENU_CONFIG = {
     "Ionogramme sanguin": {"code": "BES", "checkboxes": [CHK_BES_7, CHK_BES_8, CHK_BES_9, CHK_BES_15]},
     "Bilan hépatique": {"code": "BES", "checkboxes": [CHK_BES_3, CHK_BES_16, CHK_BES_17, CHK_BES_18, CHK_BES_19, CHK_BES_20]},
     "Bilan d'hémostase": {"code": "HEMOS", "checkboxes": [CHK_HEMOS_11, CHK_HEMOS_12, CHK_HEMOS_14]},
+    "Albumine": {"code": "BES2", "checkboxes": [CHK_BES2_2]},
 }
 
 # Printing
@@ -314,11 +315,6 @@ def compute_booking_plan(selected_items):
             code_to_checkboxes[code] = []
             code_order.append(code)
         code_to_checkboxes[code].extend(config["checkboxes"])
-
-    # Auto-add BES2 if Ionogramme sanguin is selected
-    if "Ionogramme sanguin" in selected_items:
-        code_to_checkboxes["BES2"] = [CHK_BES2_2]
-        code_order.append("BES2")
 
     return [(code, code_to_checkboxes[code]) for code in code_order]
 
