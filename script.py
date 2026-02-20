@@ -466,18 +466,25 @@ def get_selected_date():
 
 def get_selected_hour():
     """Show hour selection menu and return selected time as HH:MM:SS string."""
+    PRESET_HOURS = ["06:00", "08:00", "09:00"]
+    CUSTOM_LABEL = "Personnalisé    (saisir l'heure)"
+    NOW_IDX = 0
+
+    now_display = datetime.now().strftime("%H:%M")
     options = [
-        "06:00",
-        "08:00",
-        "09:00",
-        "Personnalisé    (saisir l'heure)",
+        f"Maintenant      ({now_display})",
+        *PRESET_HOURS,
+        CUSTOM_LABEL,
     ]
 
     print()
     print("Sélectionnez l'heure de rendez-vous:")
     choice = select(options)
+    idx = options.index(choice)
 
-    if choice == "Personnalisé    (saisir l'heure)":
+    if idx == NOW_IDX:
+        selected_time = datetime.now().strftime("%H:%M:%S")
+    elif choice == CUSTOM_LABEL:
         while True:
             raw = input("Entrez l'heure (HH:MM): ").strip()
             try:
