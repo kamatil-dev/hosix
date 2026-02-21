@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM ============================================
 REM Cross-platform Launcher for Windows
 REM Double-click this file to run script.py
@@ -29,10 +30,10 @@ if %errorlevel% neq 0 (
     
     REM Try winget first (Windows 10/11)
     winget --version >nul 2>&1
-    if %errorlevel% equ 0 (
+    if !errorlevel! equ 0 (
         echo Installing Python via winget...
         winget install Python.Python.3.13 --accept-package-agreements --accept-source-agreements
-        if %errorlevel% equ 0 (
+        if !errorlevel! equ 0 (
             echo.
             echo [SUCCESS] Python installed successfully!
             echo [INFO] Please close this window and run the script again.
@@ -76,7 +77,7 @@ echo [2/5] Setting up virtual environment...
 if not exist "venv" (
     echo Creating virtual environment...
     python -m venv venv
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
         echo [ERROR] Failed to create virtual environment!
         pause
         exit /b 1
@@ -135,7 +136,7 @@ set exit_code=%errorlevel%
 REM Apply launcher update now that python has exited (safe to replace run.bat here)
 if exist run.bat.new (
     move /y run.bat.new run.bat >nul 2>&1
-    if %errorlevel% equ 0 (
+    if !errorlevel! equ 0 (
         echo [INFO] Launcher updated. Changes take effect on next run.
     ) else (
         del run.bat.new >nul 2>&1
