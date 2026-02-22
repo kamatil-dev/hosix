@@ -581,12 +581,12 @@ def main():
 
             # Close popup window if it appears after entering IPP
             try:
-                popup_header = page.wait_for_selector(".x-window-header-body", timeout=3000)
-                if popup_header:
-                    log("[INFO] Popup détecté après saisie IPP, fermeture...")
-                    close_btn = page.locator(".x-window-header-body > div > div > div:last-child")
-                    close_btn.click()
-                    page.wait_for_timeout(500)
+                page.wait_for_selector(".x-window-closable", timeout=SOFT_TIMEOUT_MS)
+                log("[INFO] Popup détecté après saisie IPP, fermeture...")
+                close_btn = page.locator(".x-window-closable .x-box-target > div:last-child")
+                close_btn.wait_for(state="visible", timeout=SOFT_TIMEOUT_MS)
+                close_btn.click()
+                page.wait_for_timeout(500)
             except PlaywrightTimeoutError:
                 log("[INFO] Pas de popup détecté après saisie IPP.")
 
