@@ -577,6 +577,7 @@ def main():
             page.keyboard.press("Escape")
 
             safe_fill(page, TXT_IPP, current_ipp)
+            page.locator(TXT_IPP).press("Tab")  # Blur input to trigger ASPX change/postback
             page.wait_for_load_state("networkidle")
 
             # Close popup window if it appears after entering IPP
