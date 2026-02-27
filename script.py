@@ -551,6 +551,16 @@ def main():
         )
 
         context = browser.new_context(ignore_https_errors=True)
+
+        # Globally suppress unwanted ExtJS modals/overlays on every page and frame
+        context.add_init_script("""
+            (() => {
+                const s = document.createElement('style');
+                s.textContent = '.x-window-closable, .x-mask, .x-css-shadow { display: none!important }';
+                (document.head || document.documentElement).appendChild(s);
+            })();
+        """)
+
         page = context.new_page()
         if DEFAULT_TIMEOUT_MS > 0:
             page.set_default_timeout(DEFAULT_TIMEOUT_MS)
@@ -579,17 +589,6 @@ def main():
             safe_fill(page, TXT_IPP, current_ipp)
             page.locator(TXT_IPP).press("Tab")  # Blur input to trigger ASPX change/postback
             page.wait_for_load_state("networkidle")
-
-            # Close popup window if it appears after entering IPP
-            try:
-                page.wait_for_selector(".x-window-closable", timeout=SOFT_TIMEOUT_MS)
-                log("[INFO] Popup détecté après saisie IPP, fermeture...")
-                close_btn = page.locator(".x-window-closable .x-box-target > div:last-child")
-                close_btn.wait_for(state="visible", timeout=SOFT_TIMEOUT_MS)
-                close_btn.click()
-                page.wait_for_timeout(500)
-            except PlaywrightTimeoutError:
-                log("[INFO] Pas de popup détecté après saisie IPP.")
 
             page.keyboard.press("Escape")
             page.keyboard.press("Enter")
