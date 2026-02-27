@@ -267,11 +267,11 @@ def safe_fill_in_iframe(page, selector: str, value: str, frame_id: str):
         frame.locator(selector).wait_for(state="visible")
     frame.locator(selector).fill(value)
 
-async def press_ctrl_p(page):
+def press_ctrl_p(page):
     """Send Ctrl+P keyboard shortcut to trigger print dialog."""
     page.bring_to_front()
-    await page.evaluate('(() => {window.waitForPrintDialog = new Promise(f => window.print = f);})()')
-    await page.waitForFunction('window.waitForPrintDialog')
+    page.evaluate('(() => {window.waitForPrintDialog = new Promise(f => window.print = f);})()')
+    page.wait_for_function('window.waitForPrintDialog')
 
 def enter_opens_popup_and_print(page):
     """
@@ -374,8 +374,11 @@ def perform_booking(page, context, code, checkboxes, selected_date_08):
 
     # Dialog handler
     def handle_dialog(dialog):
-        log(f"[INFO] Alert detected: {dialog.message}")
-        dialog.accept()
+        try:
+            log(f"[INFO] Alert detected: {dialog.message}")
+            dialog.accept()
+        except Exception as e:
+            log(f"[WARNING] Failed to accept dialog: {e}")
 
     page.once("dialog", handle_dialog)
 
