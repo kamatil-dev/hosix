@@ -12,6 +12,7 @@ REM ============================================
 REM CONFIGURATION - Set your GitHub raw URL here
 REM ============================================
 set "GITHUB_RAW_URL=https://raw.githubusercontent.com/kamatil-dev/hosix/main/script.py"
+set "WEB_PY_URL=https://raw.githubusercontent.com/kamatil-dev/hosix/main/web.py"
 set "RUN_BAT_URL=https://raw.githubusercontent.com/kamatil-dev/hosix/main/run.bat"
 
 echo.
@@ -102,7 +103,7 @@ python -m pip install --upgrade pip --quiet
 REM Install dependencies
 echo.
 echo [4/5] Installing/checking dependencies...
-python -m pip install playwright beaupy
+python -m pip install playwright beaupy flask
 if %errorlevel% neq 0 (
     echo.
     echo [ERROR] Failed to install Python packages!
@@ -127,17 +128,18 @@ if %errorlevel% neq 0 (
 REM Update script and launcher from GitHub
 echo.
 echo [5/5] Checking for updates...
-    powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%GITHUB_RAW_URL%', 'script.py.tmp'); Move-Item -Force 'script.py.tmp' 'script.py'; Write-Host 'Script updated successfully!' } catch { Write-Host 'Script update check failed, using local version.' }"
+    powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%GITHUB_RAW_URL%', 'script.py.tmp'); Move-Item -Force 'script.py.tmp' 'script.py'; Write-Host 'script.py updated successfully!' } catch { Write-Host 'script.py update check failed, using local version.' }"
+    powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%WEB_PY_URL%', 'web.py.tmp'); Move-Item -Force 'web.py.tmp' 'web.py'; Write-Host 'web.py updated successfully!' } catch { Write-Host 'web.py update check failed, using local version.' }"
     powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%RUN_BAT_URL%', 'run.bat.new'); Write-Host 'Launcher update downloaded.' } catch { Write-Host 'Launcher update check failed, using local version.' }"
 
 echo.
 echo ========================================
-echo          Starting Script...
+echo      Starting Web Interface...
 echo ========================================
 echo.
 
-REM Run the script
-python script.py
+REM Run the web server
+python web.py
 set exit_code=%errorlevel%
 
 REM Apply launcher update now that python has exited (safe to replace run.bat here)
@@ -152,7 +154,7 @@ if exist run.bat.new (
 
 echo.
 if %exit_code% neq 0 (
-    echo [Script exited with error code: %exit_code%]
+    echo [Web server exited with error code: %exit_code%]
 )
 echo.
 echo Press any key to close...

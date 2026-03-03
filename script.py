@@ -513,6 +513,69 @@ def get_selected_bookings():
     print(f"\n[INFO] Analyses sélectionnées: {', '.join(selected)}")
     return selected
 
+def run_job(ipp_list, selected_date, selected_hour, selected_bookings, username="KAMAHTIL", password="140221"):
+    """Run the booking automation without interactive prompts."""
+    selected_date_08 = f"{selected_date} {selected_hour}"
+
+    with sync_playwright() as p:
+        launch_args = []
+        if USE_KIOSK_PRINTING:
+            launch_args.append("--kiosk-printing")
+        if USE_PRIVATE_MODE:
+            launch_args.append("--incognito")
+
+        browser = p.chromium.launch(headless=False, args=launch_args)
+        context = browser.new_context(ignore_https_errors=True)
+
+        context.add_init_script("""
+            (() => {
+                const s = document.createElement('style');
+                s.textContent = '.x-window-closable, .x-mask, .x-css-shadow { display: none!important }';
+                (document.head || document.documentElement).appendChild(s);
+            })();
+        """)
+
+        page = context.new_page()
+        if DEFAULT_TIMEOUT_MS > 0:
+            page.set_default_timeout(DEFAULT_TIMEOUT_MS)
+        else:
+            page.set_default_timeout(0)
+
+        page.goto(LOGIN_URL, timeout=0)
+        page.wait_for_selector('input[name="txtUsername"]', timeout=DEFAULT_TIMEOUT_MS)
+        page.fill('input[name="txtUsername"]', username)
+        page.fill('input[name="txtPassword"]', password)
+        safe_click_with_nav(page, "#cmdLogin")
+
+        for ipp_index, current_ipp in enumerate(ipp_list):
+            log(f"[INFO] Traitement IPP {ipp_index + 1}/{len(ipp_list)}: {current_ipp}")
+
+            page.wait_for_selector(BOOKING, timeout=DEFAULT_TIMEOUT_MS)
+            page.keyboard.press("Escape")
+            page.keyboard.press("Enter")
+            page.keyboard.press("Escape")
+
+            safe_fill(page, TXT_IPP, current_ipp)
+            page.locator(TXT_IPP).press("Tab")
+            page.wait_for_load_state("networkidle")
+
+            page.keyboard.press("Escape")
+            page.keyboard.press("Enter")
+            page.keyboard.press("Escape")
+
+            safe_check(page, CHK_MANTENER)
+            try_click(page, BTN_TOOL_1031, timeout_ms=3000)
+
+            booking_plan = compute_booking_plan(selected_bookings)
+            for code, checkboxes in booking_plan:
+                perform_booking(page, context, code, checkboxes, selected_date_08)
+
+            log(f"[INFO] IPP {current_ipp} terminé avec succès!")
+
+        log(f"[INFO] Tous les {len(ipp_list)} IPP ont été traités!")
+        browser.close()
+
+
 def main():
     clear_console()
     
