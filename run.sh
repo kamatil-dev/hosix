@@ -8,6 +8,7 @@
 # CONFIGURATION - Set your GitHub raw URL here
 # ============================================
 GITHUB_RAW_URL="https://raw.githubusercontent.com/kamatil-dev/hosix/main/script.py"
+WEB_PY_URL="https://raw.githubusercontent.com/kamatil-dev/hosix/main/web.py"
 RUN_SH_URL="https://raw.githubusercontent.com/kamatil-dev/hosix/main/run.sh"
 
 # Change to script directory
@@ -121,7 +122,7 @@ python -m pip install --upgrade pip --quiet
 # Install dependencies
 echo ""
 echo "[4/5] Installing/checking dependencies..."
-python -m pip install playwright beaupy --quiet
+python -m pip install playwright beaupy flask --quiet
 if [ $? -ne 0 ]; then
     echo "[ERROR] Failed to install Python packages!"
     read -p "Press Enter to close..."
@@ -146,10 +147,17 @@ echo "[5/5] Checking for updates..."
 if command_exists curl; then
     if curl -fsSL -H "Cache-Control: no-cache, no-store" -H "Pragma: no-cache" "$GITHUB_RAW_URL" -o script.py.tmp 2>/dev/null; then
         mv script.py.tmp script.py
-        echo "Script updated successfully!"
+        echo "script.py updated successfully!"
     else
-        echo "Script update check failed, using local version."
+        echo "script.py update check failed, using local version."
         rm -f script.py.tmp
+    fi
+    if curl -fsSL -H "Cache-Control: no-cache, no-store" -H "Pragma: no-cache" "$WEB_PY_URL" -o web.py.tmp 2>/dev/null; then
+        mv web.py.tmp web.py
+        echo "web.py updated successfully!"
+    else
+        echo "web.py update check failed, using local version."
+        rm -f web.py.tmp
     fi
     if [ -z "$_HOSIX_LAUNCHER_UPDATED" ]; then
         if curl -fsSL -H "Cache-Control: no-cache, no-store" -H "Pragma: no-cache" "$RUN_SH_URL" -o run.sh.tmp 2>/dev/null; then
@@ -166,10 +174,17 @@ if command_exists curl; then
 elif command_exists wget; then
     if wget -q --no-cache "$GITHUB_RAW_URL" -O script.py.tmp 2>/dev/null; then
         mv script.py.tmp script.py
-        echo "Script updated successfully!"
+        echo "script.py updated successfully!"
     else
-        echo "Script update check failed, using local version."
+        echo "script.py update check failed, using local version."
         rm -f script.py.tmp
+    fi
+    if wget -q --no-cache "$WEB_PY_URL" -O web.py.tmp 2>/dev/null; then
+        mv web.py.tmp web.py
+        echo "web.py updated successfully!"
+    else
+        echo "web.py update check failed, using local version."
+        rm -f web.py.tmp
     fi
     if [ -z "$_HOSIX_LAUNCHER_UPDATED" ]; then
         if wget -q --no-cache "$RUN_SH_URL" -O run.sh.tmp 2>/dev/null; then
@@ -189,17 +204,17 @@ fi
 
 echo ""
 echo "========================================"
-echo "         Starting Script..."
+echo "      Starting Web Interface..."
 echo "========================================"
 echo ""
 
-# Run the script
-python script.py
+# Run the web server
+python web.py
 exit_code=$?
 
 echo ""
 if [ $exit_code -ne 0 ]; then
-    echo "[Script exited with error code: $exit_code]"
+    echo "[Web server exited with error code: $exit_code]"
 fi
 echo ""
 read -p "Press Enter to close..."
