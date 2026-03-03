@@ -47,7 +47,14 @@ if %errorlevel% neq 0 (
     echo.
     echo [INFO] winget not available. Trying direct download from python.org...
     set "PY_INSTALLER=%TEMP%\python_installer.exe"
-    powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('https://www.python.org/ftp/python/3.8.20/python-3.8.20-amd64.exe', '%PY_INSTALLER%'); Write-Host 'Downloaded.' } catch { Write-Host 'Download failed.'; exit 1 }"
+    REM Detect Windows 7 (version 6.1) - use Python 3.8 (last version supporting Win7)
+    ver | findstr /C:"6.1" >nul 2>&1
+    if !errorlevel! equ 0 (
+        set "PY_URL=https://www.python.org/ftp/python/3.8.20/python-3.8.20-amd64.exe"
+    ) else (
+        set "PY_URL=https://www.python.org/ftp/python/3.13.2/python-3.13.2-amd64.exe"
+    )
+    powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('!PY_URL!', '%PY_INSTALLER%'); Write-Host 'Downloaded.' } catch { Write-Host 'Download failed.'; exit 1 }"
     if exist "%PY_INSTALLER%" (
         echo Running Python installer silently...
         "%PY_INSTALLER%" /quiet InstallAllUsers=0 PrependPath=1 Include_pip=1
