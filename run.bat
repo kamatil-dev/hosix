@@ -47,7 +47,14 @@ if %errorlevel% neq 0 (
     echo.
     echo [INFO] winget not available. Trying direct download from python.org...
     set "PY_INSTALLER=%TEMP%\python_installer.exe"
-    powershell -Command "try { Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.13.2/python-3.13.2-amd64.exe' -OutFile '%PY_INSTALLER%' -UseBasicParsing; Write-Host 'Downloaded.' } catch { Write-Host 'Download failed.'; exit 1 }"
+    REM Detect Windows 7 (version 6.1) - use Python 3.8 (last version supporting Win7)
+    ver | findstr /C:"6.1" >nul 2>&1
+    if !errorlevel! equ 0 (
+        set "PY_URL=https://www.python.org/ftp/python/3.8.20/python-3.8.20-amd64.exe"
+    ) else (
+        set "PY_URL=https://www.python.org/ftp/python/3.13.2/python-3.13.2-amd64.exe"
+    )
+    powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('!PY_URL!', '%PY_INSTALLER%'); Write-Host 'Downloaded.' } catch { Write-Host 'Download failed.'; exit 1 }"
     if exist "%PY_INSTALLER%" (
         echo Running Python installer silently...
         "%PY_INSTALLER%" /quiet InstallAllUsers=0 PrependPath=1 Include_pip=1
@@ -120,8 +127,8 @@ if %errorlevel% neq 0 (
 REM Update script and launcher from GitHub
 echo.
 echo [5/5] Checking for updates...
-    powershell -Command "try { Invoke-WebRequest -Uri '%GITHUB_RAW_URL%' -OutFile 'script.py.tmp' -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'}; Move-Item -Force 'script.py.tmp' 'script.py'; Write-Host 'Script updated successfully!' } catch { Write-Host 'Script update check failed, using local version.' }"
-    powershell -Command "try { Invoke-WebRequest -Uri '%RUN_BAT_URL%' -OutFile 'run.bat.new' -UseBasicParsing -Headers @{'Cache-Control'='no-cache, no-store'; 'Pragma'='no-cache'}; Write-Host 'Launcher update downloaded.' } catch { Write-Host 'Launcher update check failed, using local version.' }"
+    powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%GITHUB_RAW_URL%', 'script.py.tmp'); Move-Item -Force 'script.py.tmp' 'script.py'; Write-Host 'Script updated successfully!' } catch { Write-Host 'Script update check failed, using local version.' }"
+    powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%RUN_BAT_URL%', 'run.bat.new'); Write-Host 'Launcher update downloaded.' } catch { Write-Host 'Launcher update check failed, using local version.' }"
 
 echo.
 echo ========================================
