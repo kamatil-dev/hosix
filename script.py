@@ -1,6 +1,7 @@
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from datetime import datetime, date, timedelta
 from beaupy import select, select_multiple
+import getpass
 import re
 import os
 import subprocess
@@ -513,7 +514,7 @@ def get_selected_bookings():
     print(f"\n[INFO] Analyses sélectionnées: {', '.join(selected)}")
     return selected
 
-def run_job(ipp_list, selected_date, selected_hour, selected_bookings, username="KAMAHTIL", password="140221"):
+def run_job(ipp_list, selected_date, selected_hour, selected_bookings, username, password):
     """Run the booking automation without interactive prompts."""
     selected_date_08 = f"{selected_date} {selected_hour}"
 
@@ -529,9 +530,32 @@ def run_job(ipp_list, selected_date, selected_hour, selected_bookings, username=
 
         context.add_init_script("""
             (() => {
-                const s = document.createElement('style');
-                s.textContent = '.x-window-closable, .x-mask, .x-css-shadow { display: none!important }';
-                (document.head || document.documentElement).appendChild(s);
+                const CSS = '.x-window-closable, .x-mask, .x-css-shadow { display: none!important }';
+                const STYLE_ID = 'hosix-overlay-hide';
+                const mo = new MutationObserver(function(mutations) {
+                    for (const m of mutations) {
+                        for (const node of m.removedNodes) {
+                            if (node.id === STYLE_ID) { injectStyle(); return; }
+                        }
+                    }
+                });
+                function injectStyle() {
+                    if (!document.getElementById(STYLE_ID)) {
+                        const s = document.createElement('style');
+                        s.id = STYLE_ID;
+                        s.textContent = CSS;
+                        const container = document.head || document.documentElement;
+                        container.appendChild(s);
+                        mo.observe(container, { childList: true });
+                    }
+                }
+                injectStyle();
+                // Re-inject after ASP.NET AJAX partial postbacks (UpdatePanel)
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (window.Sys && Sys.WebForms && Sys.WebForms.PageRequestManager) {
+                        Sys.WebForms.PageRequestManager.getInstance().add_endRequest(injectStyle);
+                    }
+                });
             })();
         """)
 
@@ -599,10 +623,8 @@ def main():
     selected_bookings = get_selected_bookings()
     print()
     
-    # username = input("Username: ")
-    username = "KAMAHTIL"
-    # password = getpass.getpass("Password: ")
-    password = "140221"
+    username = input("Username: ")
+    password = getpass.getpass("Password: ")
 
     with sync_playwright() as p:
         launch_args = []
@@ -621,9 +643,32 @@ def main():
         # Globally suppress unwanted ExtJS modals/overlays on every page and frame
         context.add_init_script("""
             (() => {
-                const s = document.createElement('style');
-                s.textContent = '.x-window-closable, .x-mask, .x-css-shadow { display: none!important }';
-                (document.head || document.documentElement).appendChild(s);
+                const CSS = '.x-window-closable, .x-mask, .x-css-shadow { display: none!important }';
+                const STYLE_ID = 'hosix-overlay-hide';
+                const mo = new MutationObserver(function(mutations) {
+                    for (const m of mutations) {
+                        for (const node of m.removedNodes) {
+                            if (node.id === STYLE_ID) { injectStyle(); return; }
+                        }
+                    }
+                });
+                function injectStyle() {
+                    if (!document.getElementById(STYLE_ID)) {
+                        const s = document.createElement('style');
+                        s.id = STYLE_ID;
+                        s.textContent = CSS;
+                        const container = document.head || document.documentElement;
+                        container.appendChild(s);
+                        mo.observe(container, { childList: true });
+                    }
+                }
+                injectStyle();
+                // Re-inject after ASP.NET AJAX partial postbacks (UpdatePanel)
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (window.Sys && Sys.WebForms && Sys.WebForms.PageRequestManager) {
+                        Sys.WebForms.PageRequestManager.getInstance().add_endRequest(injectStyle);
+                    }
+                });
             })();
         """)
 

@@ -188,11 +188,11 @@ _HTML = """<!DOCTYPE html>
     </h2>
     <table>
       <thead>
-        <tr><th>Horodatage</th><th>IPP(s)</th><th>Date RDV</th><th>Analyses</th><th>Statut</th></tr>
+        <tr><th>Horodatage</th><th>IPP(s)</th><th>Date RDV</th><th>Analyses</th><th>Utilisateur</th><th>Statut</th></tr>
       </thead>
       <tbody id="jobsBody">
         {% if not jobs %}
-        <tr><td colspan="5" style="text-align:center;color:#999;padding:20px;">Aucun travail enregistré</td></tr>
+        <tr><td colspan="6" style="text-align:center;color:#999;padding:20px;">Aucun travail enregistré</td></tr>
         {% endif %}
         {% for job in jobs %}
         <tr>
@@ -200,6 +200,7 @@ _HTML = """<!DOCTYPE html>
           <td class="ipp-cell" title="{{ job.ipp_list | join(', ') }}">{{ job.ipp_list | join(', ') }}</td>
           <td style="white-space:nowrap;">{{ job.date }} {{ job.time[:5] }}</td>
           <td>{{ job.bookings | join(', ') }}</td>
+          <td>{{ job.username }}</td>
           <td>
             {% if job.status == 'running' %}
               <span class="badge badge-running"><span class="spinner"></span>En cours</span>
@@ -267,7 +268,7 @@ function loadJobs() {
     .then(jobs => {
       const tbody = document.getElementById('jobsBody');
       if (!jobs.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px;">Aucun travail enregistré</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:20px;">Aucun travail enregistré</td></tr>';
         return;
       }
       tbody.innerHTML = jobs.map(j => `
@@ -276,6 +277,7 @@ function loadJobs() {
           <td class="ipp-cell" title="${j.ipp_list.join(', ')}">${j.ipp_list.join(', ')}</td>
           <td style="white-space:nowrap;">${j.date} ${j.time.substring(0,5)}</td>
           <td>${j.bookings.join(', ')}</td>
+          <td>${j.username || ''}</td>
           <td>${renderBadge(j)}</td>
         </tr>`).join('');
     })
@@ -328,7 +330,7 @@ def index():
         menu_items=list(MENU_CONFIG.keys()),
         today=today.strftime("%d/%m/%Y"),
         tomorrow=(today + timedelta(days=1)).strftime("%d/%m/%Y"),
-        default_username="KAMAHTIL",
+        default_username="",
     )
 
 
@@ -396,6 +398,7 @@ def run_endpoint():
         "date":      selected_date,
         "time":      selected_time,
         "bookings":  sel_bookings,
+        "username":  username,
         "status":    "running",
         "error":     None,
     }
