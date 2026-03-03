@@ -525,7 +525,7 @@ def run_job(ipp_list, selected_date, selected_hour, selected_bookings, username,
         if USE_PRIVATE_MODE:
             launch_args.append("--incognito")
 
-        browser = p.chromium.launch(headless=False, args=launch_args)
+        browser = p.chromium.launch(headless=True, args=launch_args)
         context = browser.new_context(ignore_https_errors=True)
 
         context.add_init_script("""
@@ -634,7 +634,7 @@ def main():
             launch_args.append("--incognito")
 
         browser = p.chromium.launch(
-            headless=False,
+            headless=True,
             args=launch_args
         )
 
