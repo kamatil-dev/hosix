@@ -413,6 +413,134 @@ def perform_booking(page, context, code, checkboxes, selected_date_08):
 
     log(f"[INFO] Booking ({code}) completed.")
 
+
+# =========================
+# FETCH PATIENTS WITHOUT BILANS
+# =========================
+PATIENTS_LOGIN_URL = "https://sih/login.aspx?ReturnUrl=%2fApps%2fmed%2fdefault.aspx"
+PATIENT_HISTORY_URL = "https://sih/Apps/adm/Historias/historialPaciente.aspx"
+HISTORY_IPP_INPUT = "#_ctl0_cph_UcHistoria1_1"
+HISTORY_TABLE_BODY = "#_ctl0_cph_GrdHistorial-body"
+
+
+def fetch_patients_without_bilans(username, password, filter_option):
+    """
+    Fetch patient IPs from SIH that don't have (CYTO) LABORATOIRE bilans
+    for the specified period.
+
+    filter_option: "today" or "yesterday"
+    Returns: list of IP strings
+    """
+    if filter_option == "today":
+        target_date = date.today()
+    elif filter_option == "yesterday":
+        target_date = date.today() - timedelta(days=1)
+    else:
+        raise ValueError(f"Invalid filter option: {filter_option}")
+
+    with sync_playwright() as p:
+        launch_args = ["--incognito"] if USE_PRIVATE_MODE else []
+        browser = p.chromium.launch(headless=True, args=launch_args)
+        context = browser.new_context(ignore_https_errors=True)
+        page = context.new_page()
+        page.set_default_timeout(30000)
+
+        try:
+            # Login
+            page.goto(PATIENTS_LOGIN_URL, timeout=60000)
+            page.wait_for_selector('input[name="txtUsername"]', timeout=30000)
+            page.fill('input[name="txtUsername"]', username)
+            page.fill('input[name="txtPassword"]', password)
+            page.click("#cmdLogin")
+            page.wait_for_load_state("networkidle")
+
+            # Wait for episodes table
+            page.wait_for_selector("#GrdEpisodios-body", timeout=60000)
+
+            # Get all IPs from the table (2nd td of each tr in tbody)
+            all_ips = page.evaluate("""
+                () => {
+                    const tbody = document.querySelector('#GrdEpisodios-body tbody');
+                    if (!tbody) return [];
+                    const rows = tbody.querySelectorAll('tr');
+                    const ips = [];
+                    rows.forEach(row => {
+                        const tds = row.querySelectorAll('td');
+                        if (tds.length >= 2) {
+                            const ip = tds[1].textContent.trim();
+                            if (ip) ips.push(ip);
+                        }
+                    });
+                    return ips;
+                }
+            """)
+
+            if not all_ips:
+                return []
+
+            # Check each IP for bilans
+            patients_without_bilans = []
+            target_date_str = target_date.strftime("%d/%m/%Y")
+
+            for ip in all_ips:
+                try:
+                    page.goto(PATIENT_HISTORY_URL, timeout=60000)
+                    page.wait_for_load_state("networkidle")
+
+                    # Type IP in the input and blur
+                    page.wait_for_selector(HISTORY_IPP_INPUT, timeout=30000)
+                    page.fill(HISTORY_IPP_INPUT, ip)
+                    page.keyboard.press("Tab")
+                    page.wait_for_load_state("networkidle")
+
+                    # Look for (CYTO) LABORATOIRE in the history table
+                    has_bilan_on_target = False
+                    try:
+                        page.wait_for_selector(HISTORY_TABLE_BODY, timeout=15000)
+
+                        bilan_date_str = page.evaluate("""
+                            () => {
+                                const tbody = document.querySelector('#_ctl0_cph_GrdHistorial-body tbody');
+                                if (!tbody) return null;
+                                const rows = tbody.querySelectorAll('tr');
+                                for (const row of rows) {
+                                    const tds = row.querySelectorAll('td');
+                                    if (tds.length >= 4) {
+                                        const fourthTd = tds[3].textContent.trim();
+                                        if (fourthTd.includes('(CYTO) LABORATOIRE')) {
+                                            return tds[0].textContent.trim();
+                                        }
+                                    }
+                                }
+                                return null;
+                            }
+                        """)
+
+                        if bilan_date_str:
+                            # Parse date from format like "04/03/2026 8:33"
+                            try:
+                                bilan_date = datetime.strptime(
+                                    bilan_date_str.split()[0], "%d/%m/%Y"
+                                ).date()
+                                if bilan_date == target_date:
+                                    has_bilan_on_target = True
+                            except (ValueError, IndexError):
+                                pass
+
+                    except PlaywrightTimeoutError:
+                        pass
+
+                    if not has_bilan_on_target:
+                        patients_without_bilans.append(ip)
+
+                except Exception as e:
+                    log(f"[WARNING] Error checking IP {ip}, skipping: {e}")
+
+            return patients_without_bilans
+        finally:
+            browser.close()
+
+
 # =========================
 # MAIN FLOW
 # =========================

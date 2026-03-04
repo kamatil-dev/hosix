@@ -6,7 +6,7 @@ import re
 import socket
 from datetime import date, timedelta, datetime
 
-from script import MENU_CONFIG, parse_ddmmyyyy_strict, run_job
+from script import MENU_CONFIG, parse_ddmmyyyy_strict, run_job, fetch_patients_without_bilans
 
 app = Flask(__name__)
 
@@ -107,6 +107,17 @@ _HTML = """<!DOCTYPE html>
   #toast { position: fixed; bottom: 24px; right: 24px; background: #333; color: #fff;
       padding: 12px 20px; border-radius: 6px; display: none; z-index: 999; max-width: 300px; }
   .ipp-cell { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fetch-wrap { position: relative; display: inline-block; }
+  .fetch-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 2px 6px;
+      border-radius: 4px; vertical-align: middle; color: #1a73e8; transition: background .15s; }
+  .fetch-btn:hover { background: #e8f0fe; }
+  .fetch-btn:disabled { color: #aaa; cursor: not-allowed; }
+  .fetch-menu { display: none; position: absolute; left: 0; top: 100%; background: #fff; border: 1px solid #ddd;
+      border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,.15); z-index: 50; min-width: 260px; padding: 4px 0; }
+  .fetch-menu.open { display: block; }
+  .fetch-menu button { display: block; width: 100%; text-align: left; padding: 8px 14px; border: none;
+      background: none; cursor: pointer; font-size: .88rem; color: #333; }
+  .fetch-menu button:hover { background: #e8f0fe; }
 </style>
 </head>
 <body>
@@ -126,7 +137,15 @@ _HTML = """<!DOCTYPE html>
 
       <div class="row">
         <div>
-          <label>Liste des IPP <small style="font-weight:normal;">(séparés par virgules)</small></label>
+          <label>Liste des IPP <small style="font-weight:normal;">(séparés par virgules)</small>
+            <span class="fetch-wrap">
+              <button type="button" class="fetch-btn" id="fetchToggle" title="Récupérer les patients sans bilans" aria-label="Récupérer les patients sans bilans">&#x1f504;</button>
+              <div class="fetch-menu" id="fetchMenu">
+                <button type="button" onclick="fetchPatients('today')">Patients sans bilans aujourd'hui</button>
+                <button type="button" onclick="fetchPatients('yesterday')">Patients sans bilans hier</button>
+              </div>
+            </span>
+          </label>
           <textarea name="ipp_list" placeholder="ex : 123456, 789012, 345678" required></textarea>
         </div>
         <div>
@@ -310,6 +329,54 @@ document.getElementById('jobForm').addEventListener('submit', function(e) {
       btn.textContent = '▶ Lancer le travail';
     });
 });
+
+// ── Fetch patients without bilans ──
+const fetchToggle = document.getElementById('fetchToggle');
+const fetchMenu = document.getElementById('fetchMenu');
+
+fetchToggle.addEventListener('click', function(e) {
+  e.preventDefault();
+  fetchMenu.classList.toggle('open');
+});
+
+document.addEventListener('click', function(e) {
+  if (!fetchToggle.contains(e.target) && !fetchMenu.contains(e.target)) {
+    fetchMenu.classList.remove('open');
+  }
+});
+
+function fetchPatients(filter) {
+  fetchMenu.classList.remove('open');
+  const username = document.querySelector('input[name="username"]').value.trim();
+  const password = document.querySelector('input[name="password"]').value;
+  if (!username || !password) {
+    showToast('Veuillez saisir vos identifiants SIH.', 4000);
+    return;
+  }
+  const btn = fetchToggle;
+  btn.disabled = true;
+  showToast('Récupération des patients en cours…', 5000);
+
+  const fd = new FormData();
+  fd.append('username', username);
+  fd.append('password', password);
+  fd.append('filter', filter);
+
+  fetch('/fetch-patients', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) {
+        showToast('Erreur : ' + res.error, 6000);
+      } else if (res.ips && res.ips.length) {
+        document.querySelector('textarea[name="ipp_list"]').value = res.ips.join(', ');
+        showToast(res.ips.length + ' patient(s) récupéré(s).', 4000);
+      } else {
+        showToast('Aucun patient trouvé.', 4000);
+      }
+    })
+    .catch(() => showToast('Impossible de contacter le serveur. Vérifiez votre connexion.', 5000))
+    .finally(() => { btn.disabled = false; });
+}
 </script>
 </body>
 </html>
@@ -422,6 +489,26 @@ def jobs_endpoint():
     with _jobs_lock:
         recent = list(reversed(_jobs[-10:]))
     return jsonify(recent)
+
+
+@app.route("/fetch-patients", methods=["POST"])
+def fetch_patients_endpoint():
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+    filter_option = request.form.get("filter", "today")
+
+    if not username:
+        return jsonify({"error": "Nom d'utilisateur requis."}), 400
+    if not password:
+        return jsonify({"error": "Mot de passe requis."}), 400
+    if filter_option not in ("today", "yesterday"):
+        return jsonify({"error": "Option de filtre invalide."}), 400
+
+    try:
+        ips = fetch_patients_without_bilans(username, password, filter_option)
+        return jsonify({"ips": ips})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 # ──────────────────────────────────────────────
