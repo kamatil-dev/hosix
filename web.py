@@ -6,6 +6,7 @@ import re
 import socket
 from datetime import date, timedelta, datetime
 
+import script as _script_mod
 from script import MENU_CONFIG, parse_ddmmyyyy_strict, run_job, fetch_patients_without_bilans
 
 app = Flask(__name__)
@@ -123,6 +124,15 @@ _HTML = """<!DOCTYPE html>
   .fetch-menu button { display: block; width: 100%; text-align: left; padding: 8px 14px; border: none;
       background: none; cursor: pointer; font-size: .88rem; color: #333; }
   .fetch-menu button:hover { background: #e8f0fe; }
+  .run-wrap { position: relative; display: inline-block; }
+  .headless-popover { display: none; position: absolute; bottom: calc(100% + 8px); left: 0;
+      background: #fff; border: 1px solid #ddd; border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.15); z-index: 50; padding: 10px 14px; white-space: nowrap; }
+  .headless-popover.open { display: block; }
+  .headless-popover p { font-size: .82rem; color: #666; margin-bottom: 8px; }
+  .headless-popover .headless-btn { background: #e8f0fe; color: #1a73e8; border: 1px solid #1a73e8;
+      border-radius: 4px; padding: 6px 14px; cursor: pointer; font-size: .88rem; font-weight: 500; }
+  .headless-popover .headless-btn:hover { background: #d2e3fc; }
 </style>
 </head>
 <body>
@@ -198,8 +208,12 @@ _HTML = """<!DOCTYPE html>
         {% endfor %}
       </div>
 
-      <div style="margin-top:20px;">
+      <div style="margin-top:20px;" class="run-wrap" id="runWrap">
         <button type="submit" class="btn" id="submitBtn">▶ Lancer le travail</button>
+        <div class="headless-popover" id="headlessPopover">
+          <p>Mode navigateur</p>
+          <button type="button" class="headless-btn" id="headlessToggleBtn"></button>
+        </div>
       </div>
     </form>
   </div>
@@ -383,6 +397,46 @@ function fetchPatients(filter) {
     .catch(() => showToast('Impossible de contacter le serveur. Vérifiez votre connexion.', 5000))
     .finally(() => { btn.disabled = false; btn.classList.remove('loading'); });
 }
+
+// ── Headless popover on long hover ──
+(function() {
+  const runWrap = document.getElementById('runWrap');
+  const popover = document.getElementById('headlessPopover');
+  const toggleBtn = document.getElementById('headlessToggleBtn');
+  let hoverTimer = null;
+  let headless = {{ headless|tojson }};
+
+  function updateBtn() {
+    const label = headless ? '👁 Afficher le navigateur' : '🙈 Masquer le navigateur';
+    toggleBtn.textContent = label;
+    toggleBtn.setAttribute('aria-label', headless ? 'Afficher le navigateur (désactiver le mode headless)' : 'Masquer le navigateur (activer le mode headless)');
+  }
+  updateBtn();
+
+  runWrap.addEventListener('mouseenter', function() {
+    hoverTimer = setTimeout(function() { popover.classList.add('open'); }, 1500);
+  });
+  runWrap.addEventListener('mouseleave', function() {
+    clearTimeout(hoverTimer);
+    popover.classList.remove('open');
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!runWrap.contains(e.target)) { popover.classList.remove('open'); }
+  });
+
+  toggleBtn.addEventListener('click', function() {
+    fetch('/toggle-headless', { method: 'POST' })
+      .then(r => r.json())
+      .then(res => {
+        headless = res.headless;
+        updateBtn();
+        showToast(res.headless ? 'Mode headless activé — navigateur masqué.' : 'Mode headless désactivé — le navigateur sera visible.');
+        popover.classList.remove('open');
+      })
+      .catch(() => showToast('Erreur lors du changement de mode.', 4000));
+  });
+})();
 </script>
 </body>
 </html>
@@ -404,6 +458,7 @@ def index():
         today=today.strftime("%d/%m/%Y"),
         tomorrow=(today + timedelta(days=1)).strftime("%d/%m/%Y"),
         default_username="",
+        headless=_script_mod.HEADLESS,
     )
 
 
@@ -495,6 +550,12 @@ def jobs_endpoint():
     with _jobs_lock:
         recent = list(reversed(_jobs[-10:]))
     return jsonify(recent)
+
+
+@app.route("/toggle-headless", methods=["POST"])
+def toggle_headless_endpoint():
+    _script_mod.HEADLESS = not _script_mod.HEADLESS
+    return jsonify({"headless": _script_mod.HEADLESS})
 
 
 @app.route("/fetch-patients", methods=["POST"])
