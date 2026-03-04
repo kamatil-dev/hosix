@@ -443,12 +443,12 @@ def fetch_patients_without_bilans(username, password, filter_option):
         browser = p.chromium.launch(headless=True, args=launch_args)
         context = browser.new_context(ignore_https_errors=True)
         page = context.new_page()
-        page.set_default_timeout(30000)
+        page.set_default_timeout(60000)
 
         try:
             # Login
             page.goto(PATIENTS_LOGIN_URL, timeout=60000)
-            page.wait_for_selector('input[name="txtUsername"]', timeout=30000)
+            page.wait_for_selector('input[name="txtUsername"]', timeout=60000)
             page.fill('input[name="txtUsername"]', username)
             page.fill('input[name="txtPassword"]', password)
             page.click("#cmdLogin")
@@ -488,7 +488,7 @@ def fetch_patients_without_bilans(username, password, filter_option):
                     page.wait_for_load_state("networkidle")
 
                     # Type IP in the input and blur
-                    page.wait_for_selector(HISTORY_IPP_INPUT, timeout=30000)
+                    page.wait_for_selector(HISTORY_IPP_INPUT, timeout=60000)
                     page.fill(HISTORY_IPP_INPUT, ip)
                     page.keyboard.press("Tab")
                     page.wait_for_load_state("networkidle")
@@ -655,6 +655,7 @@ def run_job(ipp_list, selected_date, selected_hour, selected_bookings, username,
 
         browser = p.chromium.launch(headless=True, args=launch_args)
         context = browser.new_context(ignore_https_errors=True)
+        context.set_default_timeout(0)  # unlimited; inherited by popups
 
         context.add_init_script("""
             (() => {
@@ -688,10 +689,6 @@ def run_job(ipp_list, selected_date, selected_hour, selected_bookings, username,
         """)
 
         page = context.new_page()
-        if DEFAULT_TIMEOUT_MS > 0:
-            page.set_default_timeout(DEFAULT_TIMEOUT_MS)
-        else:
-            page.set_default_timeout(0)
 
         page.goto(LOGIN_URL, timeout=0)
         page.wait_for_selector('input[name="txtUsername"]', timeout=DEFAULT_TIMEOUT_MS)
@@ -767,6 +764,7 @@ def main():
         )
 
         context = browser.new_context(ignore_https_errors=True)
+        context.set_default_timeout(0)  # unlimited; inherited by popups
 
         # Globally suppress unwanted ExtJS modals/overlays on every page and frame
         context.add_init_script("""
@@ -801,10 +799,6 @@ def main():
         """)
 
         page = context.new_page()
-        if DEFAULT_TIMEOUT_MS > 0:
-            page.set_default_timeout(DEFAULT_TIMEOUT_MS)
-        else:
-            page.set_default_timeout(0)  # No timeout
 
         # 1) Login
         page.goto(LOGIN_URL, timeout=0)  # No timeout
