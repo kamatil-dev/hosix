@@ -112,6 +112,11 @@ _HTML = """<!DOCTYPE html>
       border-radius: 4px; vertical-align: middle; color: #1a73e8; transition: background .15s; }
   .fetch-btn:hover { background: #e8f0fe; }
   .fetch-btn:disabled { color: #aaa; cursor: not-allowed; }
+  .fetch-btn .search-icon { display: inline; }
+  .fetch-btn .fetch-spinner { display: none; width: 14px; height: 14px; border: 2px solid #1a73e8;
+      border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+  .fetch-btn.loading .search-icon { display: none; }
+  .fetch-btn.loading .fetch-spinner { display: inline-block; }
   .fetch-menu { display: none; position: absolute; left: 0; top: 100%; background: #fff; border: 1px solid #ddd;
       border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,.15); z-index: 50; min-width: 260px; padding: 4px 0; }
   .fetch-menu.open { display: block; }
@@ -139,7 +144,7 @@ _HTML = """<!DOCTYPE html>
         <div>
           <label>Liste des IPP <small style="font-weight:normal;">(séparés par virgules)</small>
             <span class="fetch-wrap">
-              <button type="button" class="fetch-btn" id="fetchToggle" title="Récupérer les patients sans bilans" aria-label="Récupérer les patients sans bilans">&#x1f504;</button>
+              <button type="button" class="fetch-btn" id="fetchToggle" title="Récupérer les patients sans bilans" aria-label="Récupérer les patients sans bilans"><svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="fetch-spinner"></span></button>
               <div class="fetch-menu" id="fetchMenu">
                 <button type="button" onclick="fetchPatients('today')">Patients sans bilans aujourd'hui</button>
                 <button type="button" onclick="fetchPatients('yesterday')">Patients sans bilans hier</button>
@@ -355,6 +360,7 @@ function fetchPatients(filter) {
   }
   const btn = fetchToggle;
   btn.disabled = true;
+  btn.classList.add('loading');
   showToast('Récupération des patients en cours…', 5000);
 
   const fd = new FormData();
@@ -375,7 +381,7 @@ function fetchPatients(filter) {
       }
     })
     .catch(() => showToast('Impossible de contacter le serveur. Vérifiez votre connexion.', 5000))
-    .finally(() => { btn.disabled = false; });
+    .finally(() => { btn.disabled = false; btn.classList.remove('loading'); });
 }
 </script>
 </body>
