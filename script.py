@@ -80,6 +80,7 @@ USE_XDOTOOL = True          # True = use xdotool to press Enter on print dialog 
 
 # Browser
 USE_PRIVATE_MODE = True     # True = launch in incognito/private mode
+HEADLESS = True             # False = show the browser window (disable headless mode)
 
 # Safety/timeouts
 DEFAULT_TIMEOUT_MS = 0  # 0 = no timeout, wait indefinitely
@@ -440,7 +441,7 @@ def fetch_patients_without_bilans(username, password, filter_option):
 
     with sync_playwright() as p:
         launch_args = ["--incognito"] if USE_PRIVATE_MODE else []
-        browser = p.chromium.launch(headless=True, args=launch_args)
+        browser = p.chromium.launch(headless=HEADLESS, args=launch_args)
         context = browser.new_context(ignore_https_errors=True)
         page = context.new_page()
         page.set_default_timeout(60000)
@@ -653,7 +654,7 @@ def run_job(ipp_list, selected_date, selected_hour, selected_bookings, username,
         if USE_PRIVATE_MODE:
             launch_args.append("--incognito")
 
-        browser = p.chromium.launch(headless=True, args=launch_args)
+        browser = p.chromium.launch(headless=HEADLESS, args=launch_args)
         context = browser.new_context(ignore_https_errors=True)
         context.set_default_timeout(0)  # unlimited; inherited by popups
 
@@ -759,7 +760,7 @@ def main():
             launch_args.append("--incognito")
 
         browser = p.chromium.launch(
-            headless=True,
+            headless=HEADLESS,
             args=launch_args
         )
 
