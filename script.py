@@ -513,8 +513,8 @@ def fetch_patients_without_bilans(username, password, filter_option, booking_cod
                                 const rows = tbody.querySelectorAll('tr');
                                 for (const row of rows) {
                                     const tds = row.querySelectorAll('td');
-                                    if (tds.length >= 4) {
-                                        const fourthTd = tds[3].textContent.trim();
+                                    if (tds.length >= 5) {
+                                        const fourthTd = tds[4].textContent.trim();
                                         for (const code of codes) {
                                             if (fourthTd.includes('(' + code + ')')) {
                                                 return tds[1].textContent.trim();
