@@ -474,7 +474,7 @@ def fetch_patients_without_bilans(username, password, filter_option, booking_cod
                         const tds = row.querySelectorAll('td');
                         if (tds.length >= 2) {
                             const ip = tds[1].textContent.trim();
-                            const name = tds.length >= 5 ? tds[4].textContent.trim() : '';
+                            const name = tds.length >= 4 ? tds[3].textContent.trim() : '';
                             if (ip) patients.push({ ip, name });
                         }
                     });
