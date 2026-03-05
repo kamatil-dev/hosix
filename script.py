@@ -551,19 +551,17 @@ def fetch_patients_without_bilans(username, password, filter_option, booking_cod
             browser.close()
 
 
-def fetch_all_patients(username, password, filter_option):
+def fetch_all_patients(username, password, filter_option="all"):
     """
     Fetch all patients from SIH without checking bilan history.
 
-    filter_option: "today" or "yesterday"
+    filter_option: "all" (default), "today", or "yesterday"
+                   All options navigate to the default.aspx page and return
+                   the full list of hospitalized patients as displayed.
     Returns: list of dicts {"ip": str, "name": str, "has_bilan": bool}
              has_bilan is always False since no bilan check is performed.
     """
-    if filter_option == "today":
-        target_date = date.today()
-    elif filter_option == "yesterday":
-        target_date = date.today() - timedelta(days=1)
-    else:
+    if filter_option not in ("all", "today", "yesterday"):
         raise ValueError(f"Invalid filter option: {filter_option}")
 
     with sync_playwright() as p:

@@ -186,11 +186,7 @@ _HTML = """<!DOCTYPE html>
               </div>
             </span>
             <span class="fetch-wrap" style="margin-left:4px;">
-              <button type="button" class="fetch-btn" id="listToggle" title="Lister tous les patients" aria-label="Lister tous les patients"><svg class="list-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="fetch-spinner"></span></button>
-              <div class="fetch-menu" id="listMenu">
-                <button type="button" onclick="listAllPatients('today')">Tous les patients aujourd'hui</button>
-                <button type="button" onclick="listAllPatients('yesterday')">Tous les patients hier</button>
-              </div>
+              <button type="button" class="fetch-btn" id="listToggle" onclick="listAllPatients('all')" title="Lister tous les patients" aria-label="Lister tous les patients"><svg class="list-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="fetch-spinner"></span></button>
             </span>
           </label>
           <textarea name="ipp_list" placeholder="ex : 123456, 789012, 345678" required></textarea>
@@ -461,22 +457,8 @@ function fetchPatients(filter) {
 
 // ── List all patients ──
 const listToggle = document.getElementById('listToggle');
-const listMenu = document.getElementById('listMenu');
-
-listToggle.addEventListener('click', function(e) {
-  e.preventDefault();
-  fetchMenu.classList.remove('open');
-  listMenu.classList.toggle('open');
-});
-
-document.addEventListener('click', function(e) {
-  if (!listToggle.contains(e.target) && !listMenu.contains(e.target)) {
-    listMenu.classList.remove('open');
-  }
-});
 
 function listAllPatients(filter) {
-  listMenu.classList.remove('open');
   const username = document.querySelector('input[name="username"]').value.trim();
   const password = document.querySelector('input[name="password"]').value;
   if (!username || !password) {
@@ -773,13 +755,13 @@ def fetch_patients_endpoint():
 def list_patients_endpoint():
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
-    filter_option = request.form.get("filter", "today")
+    filter_option = request.form.get("filter", "all")
 
     if not username:
         return jsonify({"error": "Nom d'utilisateur requis."}), 400
     if not password:
         return jsonify({"error": "Mot de passe requis."}), 400
-    if filter_option not in ("today", "yesterday"):
+    if filter_option not in ("all", "today", "yesterday"):
         return jsonify({"error": "Option de filtre invalide."}), 400
 
     try:
