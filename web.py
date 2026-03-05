@@ -117,6 +117,7 @@ _HTML = """<!DOCTYPE html>
   .fetch-btn .fetch-spinner { display: none; width: 14px; height: 14px; border: 2px solid #1a73e8;
       border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
   .fetch-btn.loading .search-icon { display: none; }
+  .fetch-btn.loading .list-icon { display: none; }
   .fetch-btn.loading .fetch-spinner { display: inline-block; }
   .fetch-menu { display: none; position: absolute; left: 0; top: 100%; background: #fff; border: 1px solid #ddd;
       border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,.15); z-index: 50; min-width: 260px; padding: 4px 0; }
@@ -182,6 +183,13 @@ _HTML = """<!DOCTYPE html>
               <div class="fetch-menu" id="fetchMenu">
                 <button type="button" onclick="fetchPatients('today')">Patients sans bilans aujourd'hui</button>
                 <button type="button" onclick="fetchPatients('yesterday')">Patients sans bilans hier</button>
+              </div>
+            </span>
+            <span class="fetch-wrap" style="margin-left:4px;">
+              <button type="button" class="fetch-btn" id="listToggle" title="Lister tous les patients" aria-label="Lister tous les patients"><svg class="list-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="fetch-spinner"></span></button>
+              <div class="fetch-menu" id="listMenu">
+                <button type="button" onclick="listAllPatients('today')">Tous les patients aujourd'hui</button>
+                <button type="button" onclick="listAllPatients('yesterday')">Tous les patients hier</button>
               </div>
             </span>
           </label>
@@ -406,6 +414,7 @@ const fetchMenu = document.getElementById('fetchMenu');
 
 fetchToggle.addEventListener('click', function(e) {
   e.preventDefault();
+  listMenu.classList.remove('open');
   fetchMenu.classList.toggle('open');
 });
 
@@ -450,6 +459,56 @@ function fetchPatients(filter) {
     .finally(() => { btn.disabled = false; btn.classList.remove('loading'); });
 }
 
+// ── List all patients ──
+const listToggle = document.getElementById('listToggle');
+const listMenu = document.getElementById('listMenu');
+
+listToggle.addEventListener('click', function(e) {
+  e.preventDefault();
+  fetchMenu.classList.remove('open');
+  listMenu.classList.toggle('open');
+});
+
+document.addEventListener('click', function(e) {
+  if (!listToggle.contains(e.target) && !listMenu.contains(e.target)) {
+    listMenu.classList.remove('open');
+  }
+});
+
+function listAllPatients(filter) {
+  listMenu.classList.remove('open');
+  const username = document.querySelector('input[name="username"]').value.trim();
+  const password = document.querySelector('input[name="password"]').value;
+  if (!username || !password) {
+    showToast('Veuillez saisir vos identifiants SIH.', 4000);
+    return;
+  }
+  const btn = listToggle;
+  btn.disabled = true;
+  btn.classList.add('loading');
+  showToast('Récupération des patients en cours…', 5000);
+
+  const fd = new FormData();
+  fd.append('username', username);
+  fd.append('password', password);
+  fd.append('filter', filter);
+  document.querySelectorAll('input[name="bookings"]:checked').forEach(cb => fd.append('bookings', cb.value));
+
+  fetch('/fetch-patients', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(res => {
+      if (res.error) {
+        showToast('Erreur : ' + res.error, 6000);
+      } else if (res.patients && res.patients.length) {
+        showPatientModal(res.patients, true /* showAll: all patients selectable */);
+      } else {
+        showToast('Aucun patient trouvé.', 4000);
+      }
+    })
+    .catch(() => showToast('Impossible de contacter le serveur. Vérifiez votre connexion.', 5000))
+    .finally(() => { btn.disabled = false; btn.classList.remove('loading'); });
+}
+
 // ── Patient selection modal ──
 (function() {
   const overlay = document.getElementById('patientModal');
@@ -467,14 +526,14 @@ function fetchPatients(filter) {
     selectAllCb.indeterminate = checked > 0 && checked < total;
   }
 
-  window.showPatientModal = function(patients) {
+  window.showPatientModal = function(patients, showAll) {
     tbody.innerHTML = '';
     patients.forEach(function(p, idx) {
       const hasBilan = p.has_bilan;
-      const checked = !hasBilan;
+      const checked = showAll ? false : !hasBilan;
       const tr = document.createElement('tr');
       tr.dataset.ip = p.ip;
-      if (hasBilan) tr.classList.add('has-bilan');
+      if (!showAll && hasBilan) tr.classList.add('has-bilan');
       tr.innerHTML =
         '<td><input type="checkbox" id="pmcb' + idx + '" aria-label="Sélectionner le patient ' + escHtml(p.ip) + '"' + (checked ? ' checked' : '') + '></td>' +
         '<td>' + escHtml(p.ip) + '</td>' +
