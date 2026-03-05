@@ -133,6 +133,30 @@ _HTML = """<!DOCTYPE html>
   .headless-popover .headless-btn { background: #e8f0fe; color: #1a73e8; border: 1px solid #1a73e8;
       border-radius: 4px; padding: 6px 14px; cursor: pointer; font-size: .88rem; font-weight: 500; }
   .headless-popover .headless-btn:hover { background: #d2e3fc; }
+  /* Patient modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200;
+      align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal-box { background: #fff; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.2);
+      max-width: 700px; width: 96%; max-height: 80vh; display: flex; flex-direction: column; }
+  .modal-header { padding: 16px 20px; border-bottom: 1px solid #eee; display: flex;
+      align-items: center; justify-content: space-between; }
+  .modal-header h3 { font-size: 1rem; font-weight: 600; color: #1a73e8; }
+  .modal-close { background: none; border: none; font-size: 1.4rem; cursor: pointer;
+      color: #666; line-height: 1; padding: 0 4px; }
+  .modal-close:hover { color: #333; }
+  .modal-body { overflow-y: auto; flex: 1; padding: 8px 0; }
+  .modal-body table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .modal-body th { background: #f8f9fa; padding: 9px 10px; text-align: left; font-weight: 600;
+      border-bottom: 2px solid #dee2e6; position: sticky; top: 0; }
+  .modal-body td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  .modal-body tr:last-child td { border-bottom: none; }
+  .modal-body tr.has-bilan td { color: #aaa; }
+  .modal-footer { padding: 12px 20px; border-top: 1px solid #eee; display: flex;
+      align-items: center; justify-content: space-between; gap: 10px; }
+  .modal-footer small { color: #666; font-size: .82rem; }
+  .modal-sel-all { background: none; border: none; color: #1a73e8; font-size: .82rem;
+      cursor: pointer; text-decoration: underline; padding: 0; }
 </style>
 </head>
 <body>
@@ -256,6 +280,33 @@ _HTML = """<!DOCTYPE html>
   </div>
 
 </div><!-- /container -->
+
+<!-- ── Patient selection modal ── -->
+<div class="modal-overlay" id="patientModal" role="dialog" aria-modal="true" aria-labelledby="patientModalTitle">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="patientModalTitle">Sélectionner les patients</h3>
+      <button type="button" class="modal-close" id="patientModalClose" aria-label="Fermer">&times;</button>
+    </div>
+    <div class="modal-body">
+      <table id="patientTable">
+        <thead>
+          <tr>
+            <th style="width:36px;"><input type="checkbox" id="modalSelectAll" title="Tout sélectionner/désélectionner"></th>
+            <th>IPP</th>
+            <th>Nom complet</th>
+            <th>Bilan existant</th>
+          </tr>
+        </thead>
+        <tbody id="patientTableBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <small id="patientModalCount"></small>
+      <button type="button" class="btn" id="patientModalConfirm">✓ Confirmer la sélection</button>
+    </div>
+  </div>
+</div>
 
 <div id="toast"></div>
 
@@ -381,15 +432,16 @@ function fetchPatients(filter) {
   fd.append('username', username);
   fd.append('password', password);
   fd.append('filter', filter);
+  // Pass selected bookings so the server knows which bilan codes to check
+  document.querySelectorAll('input[name="bookings"]:checked').forEach(cb => fd.append('bookings', cb.value));
 
   fetch('/fetch-patients', { method: 'POST', body: fd })
     .then(r => r.json())
     .then(res => {
       if (res.error) {
         showToast('Erreur : ' + res.error, 6000);
-      } else if (res.ips && res.ips.length) {
-        document.querySelector('textarea[name="ipp_list"]').value = res.ips.join(', ');
-        showToast(res.ips.length + ' patient(s) récupéré(s).', 4000);
+      } else if (res.patients && res.patients.length) {
+        showPatientModal(res.patients);
       } else {
         showToast('Aucun patient trouvé.', 4000);
       }
@@ -398,12 +450,82 @@ function fetchPatients(filter) {
     .finally(() => { btn.disabled = false; btn.classList.remove('loading'); });
 }
 
+// ── Patient selection modal ──
+(function() {
+  const overlay = document.getElementById('patientModal');
+  const closeBtn = document.getElementById('patientModalClose');
+  const confirmBtn = document.getElementById('patientModalConfirm');
+  const tbody = document.getElementById('patientTableBody');
+  const countEl = document.getElementById('patientModalCount');
+  const selectAllCb = document.getElementById('modalSelectAll');
+
+  function updateCount() {
+    const total = tbody.querySelectorAll('input[type="checkbox"]').length;
+    const checked = tbody.querySelectorAll('input[type="checkbox"]:checked').length;
+    countEl.textContent = checked + ' / ' + total + ' patient(s) sélectionné(s)';
+    selectAllCb.checked = total > 0 && checked === total;
+    selectAllCb.indeterminate = checked > 0 && checked < total;
+  }
+
+  window.showPatientModal = function(patients) {
+    tbody.innerHTML = '';
+    patients.forEach(function(p, idx) {
+      const hasBilan = p.has_bilan;
+      const checked = !hasBilan;
+      const tr = document.createElement('tr');
+      tr.dataset.ip = p.ip;
+      if (hasBilan) tr.classList.add('has-bilan');
+      tr.innerHTML =
+        '<td><input type="checkbox" id="pmcb' + idx + '" aria-label="Sélectionner le patient ' + escHtml(p.ip) + '"' + (checked ? ' checked' : '') + '></td>' +
+        '<td>' + escHtml(p.ip) + '</td>' +
+        '<td>' + escHtml(p.name || '—') + '</td>' +
+        '<td>' + (hasBilan
+          ? '<span style="color:#856404;">✓ Bilan présent</span>'
+          : '<span style="color:#0f5132;">✗ Pas de bilan</span>') + '</td>';
+      tr.querySelector('input[type="checkbox"]').addEventListener('change', updateCount);
+      tbody.appendChild(tr);
+    });
+    updateCount();
+    overlay.classList.add('open');
+  };
+
+  selectAllCb.addEventListener('change', function() {
+    tbody.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = selectAllCb.checked);
+    updateCount();
+  });
+
+  function closeModal() { overlay.classList.remove('open'); }
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+
+  confirmBtn.addEventListener('click', function() {
+    const ips = [];
+    tbody.querySelectorAll('tr').forEach(function(tr) {
+      const cb = tr.querySelector('input[type="checkbox"]');
+      if (cb && cb.checked && tr.dataset.ip) ips.push(tr.dataset.ip);
+    });
+    if (ips.length) {
+      document.querySelector('textarea[name="ipp_list"]').value = ips.join(', ');
+      showToast(ips.length + ' patient(s) ajouté(s).', 3000);
+    } else {
+      showToast('Aucun patient sélectionné.', 3000);
+    }
+    closeModal();
+  });
+})();
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ── Headless popover on long hover ──
 (function() {
   const runWrap = document.getElementById('runWrap');
   const popover = document.getElementById('headlessPopover');
   const toggleBtn = document.getElementById('headlessToggleBtn');
   let hoverTimer = null;
+  let closeTimer = null;
   let headless = {{ headless|tojson }};
 
   function updateBtn() {
@@ -414,11 +536,16 @@ function fetchPatients(filter) {
   updateBtn();
 
   runWrap.addEventListener('mouseenter', function() {
+    clearTimeout(closeTimer);
     hoverTimer = setTimeout(function() { popover.classList.add('open'); }, 1500);
   });
   runWrap.addEventListener('mouseleave', function() {
     clearTimeout(hoverTimer);
-    popover.classList.remove('open');
+    closeTimer = setTimeout(function() { popover.classList.remove('open'); }, 200);
+  });
+  popover.addEventListener('mouseenter', function() { clearTimeout(closeTimer); });
+  popover.addEventListener('mouseleave', function() {
+    closeTimer = setTimeout(function() { popover.classList.remove('open'); }, 200);
   });
 
   document.addEventListener('click', function(e) {
@@ -563,6 +690,7 @@ def fetch_patients_endpoint():
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
     filter_option = request.form.get("filter", "today")
+    sel_bookings = request.form.getlist("bookings")
 
     if not username:
         return jsonify({"error": "Nom d'utilisateur requis."}), 400
@@ -571,9 +699,14 @@ def fetch_patients_endpoint():
     if filter_option not in ("today", "yesterday"):
         return jsonify({"error": "Option de filtre invalide."}), 400
 
+    # Derive booking codes from selected analyses
+    booking_codes = list({MENU_CONFIG[b]["code"] for b in sel_bookings if b in MENU_CONFIG})
+    if not booking_codes:
+        booking_codes = ["CYTO"]
+
     try:
-        ips = fetch_patients_without_bilans(username, password, filter_option)
-        return jsonify({"ips": ips})
+        patients = fetch_patients_without_bilans(username, password, filter_option, booking_codes)
+        return jsonify({"patients": patients})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
 

@@ -424,13 +424,15 @@ HISTORY_IPP_INPUT = "#_ctl0_cph_UcHistoria1_1"
 HISTORY_TABLE_BODY = "#_ctl0_cph_GrdHistorial-body"
 
 
-def fetch_patients_without_bilans(username, password, filter_option):
+def fetch_patients_without_bilans(username, password, filter_option, booking_codes=None):
     """
-    Fetch patient IPs from SIH that don't have (CYTO) LABORATOIRE bilans
+    Fetch all patients from SIH and determine which ones already have bilans
     for the specified period.
 
     filter_option: "today" or "yesterday"
-    Returns: list of IP strings
+    booking_codes: list of booking codes to check (e.g. ['CYTO', 'BES']).
+                   Defaults to ['CYTO'] if not provided.
+    Returns: list of dicts {"ip": str, "name": str, "has_bilan": bool}
     """
     if filter_option == "today":
         target_date = date.today()
@@ -438,6 +440,9 @@ def fetch_patients_without_bilans(username, password, filter_option):
         target_date = date.today() - timedelta(days=1)
     else:
         raise ValueError(f"Invalid filter option: {filter_option}")
+
+    if not booking_codes:
+        booking_codes = ["CYTO"]
 
     with sync_playwright() as p:
         launch_args = ["--incognito"] if USE_PRIVATE_MODE else []
@@ -458,32 +463,34 @@ def fetch_patients_without_bilans(username, password, filter_option):
             # Wait for episodes table
             page.wait_for_selector("#GrdEpisodios-body", timeout=60000)
 
-            # Get all IPs from the table (2nd td of each tr in tbody)
-            all_ips = page.evaluate("""
+            # Get all patients from the table (ip from 2nd td, name from 5th td)
+            all_patients = page.evaluate("""
                 () => {
                     const tbody = document.querySelector('#GrdEpisodios-body tbody');
                     if (!tbody) return [];
                     const rows = tbody.querySelectorAll('tr');
-                    const ips = [];
+                    const patients = [];
                     rows.forEach(row => {
                         const tds = row.querySelectorAll('td');
                         if (tds.length >= 2) {
                             const ip = tds[1].textContent.trim();
-                            if (ip) ips.push(ip);
+                            const name = tds.length >= 5 ? tds[4].textContent.trim() : '';
+                            if (ip) patients.push({ ip, name });
                         }
                     });
-                    return ips;
+                    return patients;
                 }
             """)
 
-            if not all_ips:
+            if not all_patients:
                 return []
 
-            # Check each IP for bilans
-            patients_without_bilans = []
-            target_date_str = target_date.strftime("%d/%m/%Y")
-
-            for ip in all_ips:
+            result = []
+            for patient in all_patients:
+                ip = patient.get("ip", "")
+                name = patient.get("name", "")
+                if not ip:
+                    continue
                 try:
                     page.goto(PATIENT_HISTORY_URL, timeout=60000)
                     page.wait_for_load_state("networkidle")
@@ -494,13 +501,13 @@ def fetch_patients_without_bilans(username, password, filter_option):
                     page.keyboard.press("Tab")
                     page.wait_for_load_state("networkidle")
 
-                    # Look for (CYTO) LABORATOIRE in the history table
+                    # Look for any of the booking codes in the history table
                     has_bilan_on_target = False
                     try:
                         page.wait_for_selector(HISTORY_TABLE_BODY, timeout=15000)
 
                         bilan_date_str = page.evaluate("""
-                            () => {
+                            (codes) => {
                                 const tbody = document.querySelector('#_ctl0_cph_GrdHistorial-body tbody');
                                 if (!tbody) return null;
                                 const rows = tbody.querySelectorAll('tr');
@@ -508,14 +515,16 @@ def fetch_patients_without_bilans(username, password, filter_option):
                                     const tds = row.querySelectorAll('td');
                                     if (tds.length >= 4) {
                                         const fourthTd = tds[3].textContent.trim();
-                                        if (fourthTd.includes('(CYTO) LABORATOIRE')) {
-                                            return tds[0].textContent.trim();
+                                        for (const code of codes) {
+                                            if (fourthTd.includes('(' + code + ')')) {
+                                                return tds[0].textContent.trim();
+                                            }
                                         }
                                     }
                                 }
                                 return null;
                             }
-                        """)
+                        """, booking_codes)
 
                         if bilan_date_str:
                             # Parse date from format like "04/03/2026 8:33"
@@ -531,13 +540,13 @@ def fetch_patients_without_bilans(username, password, filter_option):
                     except PlaywrightTimeoutError:
                         pass
 
-                    if not has_bilan_on_target:
-                        patients_without_bilans.append(ip)
+                    result.append({"ip": ip, "name": name, "has_bilan": has_bilan_on_target})
 
                 except Exception as e:
                     log(f"[WARNING] Error checking IP {ip}, skipping: {e}")
+                    result.append({"ip": ip, "name": name, "has_bilan": False})
 
-            return patients_without_bilans
+            return result
         finally:
             browser.close()
 
