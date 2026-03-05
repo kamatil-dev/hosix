@@ -7,7 +7,7 @@ import socket
 from datetime import date, timedelta, datetime
 
 import script as _script_mod
-from script import MENU_CONFIG, parse_ddmmyyyy_strict, run_job, fetch_patients_without_bilans
+from script import MENU_CONFIG, parse_ddmmyyyy_strict, run_job, fetch_patients_without_bilans, fetch_all_patients
 
 app = Flask(__name__)
 
@@ -492,9 +492,8 @@ function listAllPatients(filter) {
   fd.append('username', username);
   fd.append('password', password);
   fd.append('filter', filter);
-  document.querySelectorAll('input[name="bookings"]:checked').forEach(cb => fd.append('bookings', cb.value));
 
-  fetch('/fetch-patients', { method: 'POST', body: fd })
+  fetch('/list-patients', { method: 'POST', body: fd })
     .then(r => r.json())
     .then(res => {
       if (res.error) {
@@ -765,6 +764,26 @@ def fetch_patients_endpoint():
 
     try:
         patients = fetch_patients_without_bilans(username, password, filter_option, booking_codes)
+        return jsonify({"patients": patients})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/list-patients", methods=["POST"])
+def list_patients_endpoint():
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
+    filter_option = request.form.get("filter", "today")
+
+    if not username:
+        return jsonify({"error": "Nom d'utilisateur requis."}), 400
+    if not password:
+        return jsonify({"error": "Mot de passe requis."}), 400
+    if filter_option not in ("today", "yesterday"):
+        return jsonify({"error": "Option de filtre invalide."}), 400
+
+    try:
+        patients = fetch_all_patients(username, password, filter_option)
         return jsonify({"patients": patients})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500

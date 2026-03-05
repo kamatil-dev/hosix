@@ -551,6 +551,64 @@ def fetch_patients_without_bilans(username, password, filter_option, booking_cod
             browser.close()
 
 
+def fetch_all_patients(username, password, filter_option):
+    """
+    Fetch all patients from SIH without checking bilan history.
+
+    filter_option: "today" or "yesterday"
+    Returns: list of dicts {"ip": str, "name": str, "has_bilan": bool}
+             has_bilan is always False since no bilan check is performed.
+    """
+    if filter_option == "today":
+        target_date = date.today()
+    elif filter_option == "yesterday":
+        target_date = date.today() - timedelta(days=1)
+    else:
+        raise ValueError(f"Invalid filter option: {filter_option}")
+
+    with sync_playwright() as p:
+        launch_args = ["--incognito"] if USE_PRIVATE_MODE else []
+        browser = p.chromium.launch(headless=HEADLESS, args=launch_args)
+        context = browser.new_context(ignore_https_errors=True)
+        page = context.new_page()
+        page.set_default_timeout(60000)
+
+        try:
+            # Login
+            page.goto(PATIENTS_LOGIN_URL, timeout=60000)
+            page.wait_for_selector('input[name="txtUsername"]', timeout=60000)
+            page.fill('input[name="txtUsername"]', username)
+            page.fill('input[name="txtPassword"]', password)
+            page.click("#cmdLogin")
+            page.wait_for_load_state("networkidle")
+
+            # Wait for episodes table
+            page.wait_for_selector("#GrdEpisodios-body", timeout=60000)
+
+            # Get all patients from the table (ip from 2nd td, name from 5th td)
+            all_patients = page.evaluate("""
+                () => {
+                    const tbody = document.querySelector('#GrdEpisodios-body tbody');
+                    if (!tbody) return [];
+                    const rows = tbody.querySelectorAll('tr');
+                    const patients = [];
+                    rows.forEach(row => {
+                        const tds = row.querySelectorAll('td');
+                        if (tds.length >= 2) {
+                            const ip = tds[1].textContent.trim();
+                            const name = tds.length >= 4 ? tds[3].textContent.trim() : '';
+                            if (ip) patients.push({ ip, name });
+                        }
+                    });
+                    return patients;
+                }
+            """)
+
+            return [{"ip": p["ip"], "name": p["name"], "has_bilan": False} for p in all_patients if p.get("ip")]
+        finally:
+            browser.close()
+
+
 # =========================
 # MAIN FLOW
 # =========================
