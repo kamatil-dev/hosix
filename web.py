@@ -179,14 +179,12 @@ _HTML = """<!DOCTYPE html>
         <div>
           <label>Liste des IPP <small style="font-weight:normal;">(séparés par virgules)</small>
             <span class="fetch-wrap">
-              <button type="button" class="fetch-btn" id="fetchToggle" title="Récupérer les patients sans bilans" aria-label="Récupérer les patients sans bilans"><svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span class="fetch-spinner"></span></button>
-              <div class="fetch-menu" id="fetchMenu">
+              <button type="button" class="fetch-btn" id="listToggle" title="Lister les patients" aria-label="Lister les patients"><svg class="list-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="fetch-spinner"></span></button>
+              <div class="fetch-menu" id="listMenu">
+                <button type="button" onclick="listAllPatients('all')">Lister tous les patients</button>
                 <button type="button" onclick="fetchPatients('today')">Patients sans bilans aujourd'hui</button>
                 <button type="button" onclick="fetchPatients('yesterday')">Patients sans bilans hier</button>
               </div>
-            </span>
-            <span class="fetch-wrap" style="margin-left:4px;">
-              <button type="button" class="fetch-btn" id="listToggle" onclick="listAllPatients('all')" title="Lister tous les patients" aria-label="Lister tous les patients"><svg class="list-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="fetch-spinner"></span></button>
             </span>
           </label>
           <textarea name="ipp_list" placeholder="ex : 123456, 789012, 345678" required></textarea>
@@ -299,7 +297,6 @@ _HTML = """<!DOCTYPE html>
             <th style="width:36px;"><input type="checkbox" id="modalSelectAll" title="Tout sélectionner/désélectionner"></th>
             <th>IPP</th>
             <th>Nom complet</th>
-            <th>Bilan existant</th>
           </tr>
         </thead>
         <tbody id="patientTableBody"></tbody>
@@ -405,30 +402,29 @@ document.getElementById('jobForm').addEventListener('submit', function(e) {
 });
 
 // ── Fetch patients without bilans ──
-const fetchToggle = document.getElementById('fetchToggle');
-const fetchMenu = document.getElementById('fetchMenu');
+const listToggle = document.getElementById('listToggle');
+const listMenu = document.getElementById('listMenu');
 
-fetchToggle.addEventListener('click', function(e) {
+listToggle.addEventListener('click', function(e) {
   e.preventDefault();
-  listMenu.classList.remove('open');
-  fetchMenu.classList.toggle('open');
+  listMenu.classList.toggle('open');
 });
 
 document.addEventListener('click', function(e) {
-  if (!fetchToggle.contains(e.target) && !fetchMenu.contains(e.target)) {
-    fetchMenu.classList.remove('open');
+  if (!listToggle.contains(e.target) && !listMenu.contains(e.target)) {
+    listMenu.classList.remove('open');
   }
 });
 
 function fetchPatients(filter) {
-  fetchMenu.classList.remove('open');
+  listMenu.classList.remove('open');
   const username = document.querySelector('input[name="username"]').value.trim();
   const password = document.querySelector('input[name="password"]').value;
   if (!username || !password) {
     showToast('Veuillez saisir vos identifiants SIH.', 4000);
     return;
   }
-  const btn = fetchToggle;
+  const btn = listToggle;
   btn.disabled = true;
   btn.classList.add('loading');
   showToast('Récupération des patients en cours…', 5000);
@@ -456,9 +452,9 @@ function fetchPatients(filter) {
 }
 
 // ── List all patients ──
-const listToggle = document.getElementById('listToggle');
 
 function listAllPatients(filter) {
+  listMenu.classList.remove('open');
   const username = document.querySelector('input[name="username"]').value.trim();
   const password = document.querySelector('input[name="password"]').value;
   if (!username || !password) {
@@ -518,10 +514,7 @@ function listAllPatients(filter) {
       tr.innerHTML =
         '<td><input type="checkbox" id="pmcb' + idx + '" aria-label="Sélectionner le patient ' + escHtml(p.ip) + '"' + (checked ? ' checked' : '') + '></td>' +
         '<td>' + escHtml(p.ip) + '</td>' +
-        '<td>' + escHtml(p.name || '—') + '</td>' +
-        '<td>' + (hasBilan
-          ? '<span style="color:#856404;">✓ Bilan présent</span>'
-          : '<span style="color:#0f5132;">✗ Pas de bilan</span>') + '</td>';
+        '<td>' + escHtml(p.name || '—') + '</td>';
       tr.querySelector('input[type="checkbox"]').addEventListener('change', updateCount);
       tbody.appendChild(tr);
     });
