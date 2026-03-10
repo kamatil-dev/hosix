@@ -452,6 +452,16 @@ def fetch_patients_without_bilans(username, password, filter_option, booking_cod
         page.set_default_timeout(60000)
 
         try:
+            # Auto-accept any JS alert dialogs that may appear
+            def handle_dialog(dialog):
+                try:
+                    log(f"[INFO] Alert detected: {dialog.message}")
+                    dialog.accept()
+                except Exception as e:
+                    log(f"[WARNING] Failed to accept dialog: {e}")
+
+            page.on("dialog", handle_dialog)
+
             # Login
             page.goto(PATIENTS_LOGIN_URL, timeout=60000)
             page.wait_for_selector('input[name="txtUsername"]', timeout=60000)
@@ -500,6 +510,11 @@ def fetch_patients_without_bilans(username, password, filter_option, booking_cod
                     page.fill(HISTORY_IPP_INPUT, ip)
                     page.keyboard.press("Tab")
                     page.wait_for_load_state("networkidle")
+
+                    # Dismiss any alert that may appear after blur
+                    page.keyboard.press("Escape")
+                    page.keyboard.press("Enter")
+                    page.keyboard.press("Escape")
 
                     # Look for any of the booking codes in the history table
                     has_bilan_on_target = False
