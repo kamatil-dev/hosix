@@ -7,7 +7,7 @@ import socket
 from datetime import date, timedelta, datetime
 
 import script as _script_mod
-from script import MENU_CONFIG, parse_ddmmyyyy_strict, run_job, fetch_patients_without_bilans, fetch_all_patients
+from script import MENU_CONFIG, parse_ddmmyyyy_strict, run_job, fetch_patients_without_bilans, fetch_all_patients, open_browser_for_config
 
 app = Flask(__name__)
 
@@ -90,6 +90,10 @@ _HTML = """<!DOCTYPE html>
       border-radius: 4px; font-size: 1rem; cursor: pointer; font-weight: 500; transition: background .15s; }
   .btn:hover { background: #1557b0; }
   .btn:disabled { background: #aaa; cursor: not-allowed; }
+  .btn-secondary { background: #fff; color: #1a73e8; border: 1px solid #1a73e8; padding: 10px 20px;
+      border-radius: 4px; font-size: 1rem; cursor: pointer; font-weight: 500; transition: background .15s; }
+  .btn-secondary:hover { background: #e8f0fe; }
+  .btn-secondary:disabled { background: #f8f9fa; color: #aaa; border-color: #ddd; cursor: not-allowed; }
   .link-btn { font-size: .82rem; color: #1a73e8; cursor: pointer; background: none;
       border: none; text-decoration: underline; padding: 0; margin-left: 8px; }
   table { width: 100%; border-collapse: collapse; font-size: .88rem; }
@@ -234,8 +238,9 @@ _HTML = """<!DOCTYPE html>
         {% endfor %}
       </div>
 
-      <div style="margin-top:20px;" class="run-wrap" id="runWrap">
+      <div style="margin-top:20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;" class="run-wrap" id="runWrap">
         <button type="submit" class="btn" id="submitBtn">▶ Lancer le travail</button>
+        <button type="button" class="btn-secondary" id="openBrowserBtn" title="Ouvrir le navigateur pour configurer l'imprimante manuellement">🖨 Configurer l'imprimante</button>
         <div class="headless-popover" id="headlessPopover">
           <p>Mode navigateur</p>
           <button type="button" class="headless-btn" id="headlessToggleBtn"></button>
@@ -578,6 +583,17 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ── Open browser for printer configuration ──
+document.getElementById('openBrowserBtn').addEventListener('click', function() {
+  const btn = this;
+  btn.disabled = true;
+  fetch('/open-browser', { method: 'POST' })
+    .then(r => r.json())
+    .then(() => showToast('Navigateur ouvert — configurez votre imprimante, puis fermez la fenêtre.', 6000))
+    .catch(() => showToast('Impossible d\'ouvrir le navigateur.', 4000))
+    .finally(() => { btn.disabled = false; });
+});
+
 // ── Headless popover on long hover ──
 (function() {
   const runWrap = document.getElementById('runWrap');
@@ -742,6 +758,17 @@ def jobs_endpoint():
 def toggle_headless_endpoint():
     _script_mod.HEADLESS = not _script_mod.HEADLESS
     return jsonify({"headless": _script_mod.HEADLESS})
+
+
+@app.route("/open-browser", methods=["POST"])
+def open_browser_endpoint():
+    def _bg():
+        try:
+            open_browser_for_config()
+        except Exception as exc:
+            print(f"[WARNING] open_browser_for_config: {exc}")
+    threading.Thread(target=_bg, daemon=True).start()
+    return jsonify({"ok": True})
 
 
 @app.route("/fetch-patients", methods=["POST"])
