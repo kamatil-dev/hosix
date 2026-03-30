@@ -453,38 +453,64 @@ function fetchPatients(filter) {
 
 // ── List all patients ──
 
-function listAllPatients(filter) {
-  listMenu.classList.remove('open');
-  const username = document.querySelector('input[name="username"]').value.trim();
-  const password = document.querySelector('input[name="password"]').value;
-  if (!username || !password) {
-    showToast('Veuillez saisir vos identifiants SIH.', 4000);
-    return;
+(function() {
+  const CACHE_KEY = 'hosix_all_patients';
+  const usernameInput = document.querySelector('input[name="username"]');
+  if (usernameInput) {
+    usernameInput.addEventListener('input', function() {
+      try { sessionStorage.removeItem(CACHE_KEY); } catch(e) {}
+    });
   }
-  const btn = listToggle;
-  btn.disabled = true;
-  btn.classList.add('loading');
-  showToast('Récupération des patients en cours…', 5000);
 
-  const fd = new FormData();
-  fd.append('username', username);
-  fd.append('password', password);
-  fd.append('filter', filter);
+  window.listAllPatients = function(filter) {
+    listMenu.classList.remove('open');
+    const username = document.querySelector('input[name="username"]').value.trim();
+    const password = document.querySelector('input[name="password"]').value;
+    if (!username || !password) {
+      showToast('Veuillez saisir vos identifiants SIH.', 4000);
+      return;
+    }
 
-  fetch('/list-patients', { method: 'POST', body: fd })
-    .then(r => r.json())
-    .then(res => {
-      if (res.error) {
-        showToast('Erreur : ' + res.error, 6000);
-      } else if (res.patients && res.patients.length) {
-        showPatientModal(res.patients, true /* showAll: all patients selectable */);
-      } else {
-        showToast('Aucun patient trouvé.', 4000);
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || 'null');
+      if (cached && cached.username === username && Array.isArray(cached.patients)) {
+        if (cached.patients.length) {
+          showPatientModal(cached.patients, true /* showAll: all patients selectable */);
+        } else {
+          showToast('Aucun patient trouvé.', 4000);
+        }
+        return;
       }
-    })
-    .catch(() => showToast('Impossible de contacter le serveur. Vérifiez votre connexion.', 5000))
-    .finally(() => { btn.disabled = false; btn.classList.remove('loading'); });
-}
+    } catch(e) {}
+
+    const btn = listToggle;
+    btn.disabled = true;
+    btn.classList.add('loading');
+    showToast('Récupération des patients en cours…', 5000);
+
+    const fd = new FormData();
+    fd.append('username', username);
+    fd.append('password', password);
+    fd.append('filter', filter);
+
+    fetch('/list-patients', { method: 'POST', body: fd })
+      .then(r => r.json())
+      .then(res => {
+        if (res.error) {
+          showToast('Erreur : ' + res.error, 6000);
+        } else if (res.patients) {
+          try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ username: username, patients: res.patients })); } catch(e) { console.warn('sessionStorage unavailable:', e); }
+          if (res.patients.length) {
+            showPatientModal(res.patients, true /* showAll: all patients selectable */);
+          } else {
+            showToast('Aucun patient trouvé.', 4000);
+          }
+        }
+      })
+      .catch(() => showToast('Impossible de contacter le serveur. Vérifiez votre connexion.', 5000))
+      .finally(() => { btn.disabled = false; btn.classList.remove('loading'); });
+  };
+})();
 
 // ── Patient selection modal ──
 (function() {
