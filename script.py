@@ -1,3 +1,4 @@
+import utils.session
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from datetime import datetime, date, timedelta
 from beaupy import select, select_multiple
