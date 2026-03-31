@@ -622,20 +622,6 @@ def fetch_all_patients(username, password, filter_option="all"):
             browser.close()
 
 
-def open_browser_for_config():
-    """Open a visible browser window so the user can configure the printer manually.
-    Blocks until the user closes the browser."""
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        context = browser.new_context(ignore_https_errors=True)
-        page = context.new_page()
-        page.goto("about:blank")
-        try:
-            page.wait_for_event("close", timeout=None)
-        except Exception:
-            pass
-
-
 # =========================
 # MAIN FLOW
 # =========================
