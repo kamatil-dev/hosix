@@ -177,7 +177,7 @@ _HTML = """<!DOCTYPE html>
 
       <div class="row">
         <div>
-          <label>Liste des IPP <small style="font-weight:normal;">(séparés par virgules)</small>
+          <label for="ipp_list">Liste des IPP <small style="font-weight:normal;">(séparés par virgules)</small>
             <span class="fetch-wrap">
               <button type="button" class="fetch-btn" id="listToggle" title="Lister les patients" aria-label="Lister les patients"><svg class="list-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="fetch-spinner"></span></button>
               <div class="fetch-menu" id="listMenu">
@@ -187,7 +187,7 @@ _HTML = """<!DOCTYPE html>
               </div>
             </span>
           </label>
-          <textarea name="ipp_list" placeholder="ex : 123456, 789012, 345678" required></textarea>
+          <textarea id="ipp_list" name="ipp_list" placeholder="ex : 123456, 789012, 345678" required></textarea>
         </div>
         <div>
           <label>Identifiants SIH</label>
