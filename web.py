@@ -1,4 +1,4 @@
-from flask import Flask, render_template_string, request, jsonify
+from flask import Flask, render_template_string, request, jsonify, cli as flask_cli
 import threading
 import json
 import os
@@ -11,28 +11,21 @@ import script as _script_mod
 from script import MENU_CONFIG, parse_ddmmyyyy_strict, run_job, fetch_patients_without_bilans, fetch_all_patients
 
 app = Flask(__name__)
-CONSOLE_LOGS_ENABLED = False
+LOGGING_ENABLED = False
 
 
-def console_log(*args, **kwargs):
-    if CONSOLE_LOGS_ENABLED:
+def log_if_enabled(*args, **kwargs):
+    if LOGGING_ENABLED:
         print(*args, **kwargs)
 
 
 def configure_console_logging():
-    if CONSOLE_LOGS_ENABLED:
-        return
-    try:
-        from flask import cli as flask_cli
-        flask_cli.show_server_banner = lambda *x: None
-    except Exception:
-        pass
-    app.logger.disabled = True
-    app.logger.propagate = False
-    werkzeug_logger = logging.getLogger("werkzeug")
-    werkzeug_logger.disabled = True
-    werkzeug_logger.propagate = False
-    werkzeug_logger.setLevel(logging.CRITICAL)
+    if not LOGGING_ENABLED:
+        if hasattr(flask_cli, "show_server_banner"):
+            flask_cli.show_server_banner = lambda *args: None
+        app.logger.disabled = True
+        werkzeug_logger = logging.getLogger("werkzeug")
+        werkzeug_logger.disabled = True
 
 # ──────────────────────────────────────────────
 # Job history (last 10 jobs, persisted to disk)
@@ -49,7 +42,7 @@ def _load_jobs():
             with open(_JOB_HISTORY_FILE, "r", encoding="utf-8") as fh:
                 _jobs = json.load(fh)
         except Exception as exc:
-            console_log(f"[WARNING] Could not load job history: {exc}")
+            log_if_enabled(f"[WARNING] Could not load job history: {exc}")
             _jobs = []
 
 
@@ -58,7 +51,7 @@ def _save_jobs():
         with open(_JOB_HISTORY_FILE, "w", encoding="utf-8") as fh:
             json.dump(_jobs[-10:], fh, indent=2, ensure_ascii=False)
     except Exception as exc:
-        console_log(f"[WARNING] Could not save job history: {exc}")
+        log_if_enabled(f"[WARNING] Could not save job history: {exc}")
 
 
 def _add_job(job):
@@ -792,7 +785,7 @@ def list_patients_endpoint():
 # ──────────────────────────────────────────────
 if __name__ == "__main__":
     configure_console_logging()
-    _script_mod.VERBOSE = False
+    _script_mod.VERBOSE = LOGGING_ENABLED
     _load_jobs()
 
     # Try to determine a LAN IP for convenience
@@ -804,14 +797,14 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    console_log()
-    console_log("=" * 55)
-    console_log("  HOSIX Web Interface démarré !")
-    console_log("  Accédez depuis n'importe quel appareil :")
-    console_log(f"    → http://{lan_ip}:5000")
-    console_log(f"    → http://localhost:5000")
-    console_log("  Appuyez sur Ctrl+C pour arrêter le serveur.")
-    console_log("=" * 55)
-    console_log()
+    log_if_enabled()
+    log_if_enabled("=" * 55)
+    log_if_enabled("  HOSIX Web Interface démarré !")
+    log_if_enabled("  Accédez depuis n'importe quel appareil :")
+    log_if_enabled(f"    → http://{lan_ip}:5000")
+    log_if_enabled(f"    → http://localhost:5000")
+    log_if_enabled("  Appuyez sur Ctrl+C pour arrêter le serveur.")
+    log_if_enabled("=" * 55)
+    log_if_enabled()
 
     app.run(host="0.0.0.0", port=5000, debug=False)
