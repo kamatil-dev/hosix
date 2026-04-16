@@ -5,6 +5,9 @@ import os
 import re
 import socket
 import logging
+import sys
+import time
+import webbrowser
 from datetime import date, timedelta, datetime
 
 import script as _script_mod
@@ -797,14 +800,81 @@ if __name__ == "__main__":
     except Exception:
         pass
 
-    log_if_enabled()
-    log_if_enabled("=" * 55)
-    log_if_enabled("  HOSIX Web Interface démarré !")
-    log_if_enabled("  Accédez depuis n'importe quel appareil :")
-    log_if_enabled(f"    → http://{lan_ip}:5000")
-    log_if_enabled(f"    → http://localhost:5000")
-    log_if_enabled("  Appuyez sur Ctrl+C pour arrêter le serveur.")
-    log_if_enabled("=" * 55)
-    log_if_enabled()
+    port = 5000
+    local_url = f"http://localhost:{port}"
+    network_url = f"http://{lan_ip}:{port}"
 
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    # ── Loading bar ────────────────────────────────────────────
+    _server_ready = threading.Event()
+
+    def _loading_bar():
+        frames = ["|", "/", "-", "\\"]
+        msg = "  [{}] Starting server..."
+        i = 0
+        while not _server_ready.is_set():
+            sys.stdout.write(f"\r{msg.format(frames[i % len(frames)])}")
+            sys.stdout.flush()
+            i += 1
+            time.sleep(0.12)
+        # Clear the line using the known message length
+        sys.stdout.write("\r" + " " * len(msg.format("-")) + "\r")
+        sys.stdout.flush()
+
+    def _run_server():
+        app.run(host="0.0.0.0", port=port, debug=False)
+
+    print()
+    print("=" * 55)
+    print("  HOSIX Web Interface")
+    print("=" * 55)
+
+    loading_thread = threading.Thread(target=_loading_bar, daemon=True)
+    server_thread = threading.Thread(target=_run_server, daemon=True)
+
+    loading_thread.start()
+    server_thread.start()
+
+    # Wait until the server accepts connections (max 30 s)
+    deadline = time.time() + 30
+    server_started = False
+    while time.time() < deadline:
+        try:
+            with socket.create_connection(("localhost", port), timeout=0.5):
+                server_started = True
+                break
+        except (ConnectionRefusedError, OSError):
+            time.sleep(0.1)
+
+    _server_ready.set()
+    loading_thread.join()
+
+    if not server_started:
+        print()
+        print("  [ERROR] Server did not start within 30 seconds.")
+        print()
+        sys.exit(1)
+
+    # OSC 8 hyperlink makes the URL clickable in modern terminals
+    def _clickable(url):
+        return f"\033]8;;{url}\033\\{url}\033]8;;\033\\"
+
+    print()
+    print(f"  \u2713 Server ready!")
+    print(f"  \u2192 Local:   {_clickable(local_url)}")
+    if lan_ip != "localhost":
+        print(f"  \u2192 Network: {_clickable(network_url)}")
+    print()
+    print("  Opening browser automatically...")
+    print("  Press Ctrl+C to stop the server.")
+    print("=" * 55)
+    print()
+
+    webbrowser.open(local_url)
+
+    # Keep the main thread alive until the server thread exits
+    try:
+        server_thread.join()
+    except KeyboardInterrupt:
+        print()
+        print("  Server stopped.")
+        print()
