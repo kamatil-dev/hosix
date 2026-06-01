@@ -1,3 +1,4 @@
+import utils.session
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 from datetime import datetime, date, timedelta
 from beaupy import select, select_multiple
@@ -97,6 +98,57 @@ def log(message):
     """Print message only if VERBOSE is True."""
     if VERBOSE:
         print(message)
+
+def get_printers():
+    """Return a list of available printer names on the system."""
+    printers = []
+    if os.name == "nt":
+        # Windows: use wmic
+        try:
+            result = subprocess.run(
+                ["wmic", "printer", "get", "Name"],
+                capture_output=True, text=True, timeout=10
+            )
+            for line in result.stdout.strip().splitlines()[1:]:
+                name = line.strip()
+                if name:
+                    printers.append(name)
+        except Exception as exc:
+            log(f"[WARNING] Could not list printers: {exc}")
+    else:
+        # Linux/macOS: use lpstat
+        try:
+            result = subprocess.run(
+                ["lpstat", "-a"],
+                capture_output=True, text=True, timeout=10
+            )
+            for line in result.stdout.strip().splitlines():
+                parts = line.split()
+                if parts:
+                    printers.append(parts[0])
+        except Exception as exc:
+            log(f"[WARNING] Could not list printers: {exc}")
+    return printers
+
+def set_default_printer(printer_name):
+    """Set the OS default printer. Returns True on success."""
+    if not printer_name:
+        return True  # No change requested
+    try:
+        if os.name == "nt":
+            subprocess.run(
+                ["rundll32", "printui.dll,PrintUIEntry", "/y", "/n", printer_name],
+                check=True, timeout=10
+            )
+        else:
+            subprocess.run(
+                ["lpoptions", "-d", printer_name],
+                check=True, timeout=10
+            )
+        return True
+    except Exception as exc:
+        log(f"[WARNING] Failed to set default printer '{printer_name}': {exc}")
+        return False
 
 def parse_ddmmyyyy_strict(s: str) -> date:
     """Parse 'dd/mm/yyyy' after removing whitespace."""
@@ -723,9 +775,14 @@ def get_selected_bookings():
     print(f"\n[INFO] Analyses sélectionnées: {', '.join(selected)}")
     return selected
 
-def run_job(ipp_list, selected_date, selected_hour, selected_bookings, username, password):
+def run_job(ipp_list, selected_date, selected_hour, selected_bookings, username, password, printer=None):
     """Run the booking automation without interactive prompts."""
     selected_date_08 = f"{selected_date} {selected_hour}"
+
+    # Set the selected printer as default before launching the browser
+    if printer:
+        if not set_default_printer(printer):
+            log(f"[WARNING] Could not set printer: {printer}")
 
     with sync_playwright() as p:
         launch_args = []
@@ -827,10 +884,29 @@ def main():
 
     # Get selected booking types from user
     selected_bookings = get_selected_bookings()
+
+    # Get selected printer from user
+    printers = get_printers()
+    selected_printer = None
+    if printers:
+        print()
+        print("Sélectionnez l'imprimante:")
+        printer_options = ["Imprimante par défaut"] + printers
+        choice = select(printer_options)
+        if choice and choice != "Imprimante par défaut":
+            selected_printer = choice
+            print(f"\n[INFO] Imprimante sélectionnée: {selected_printer}")
+        else:
+            print("\n[INFO] Utilisation de l'imprimante par défaut.")
     print()
     
     username = input("Username: ")
     password = getpass.getpass("Password: ")
+
+    # Set the selected printer as default before launching the browser
+    if selected_printer:
+        if not set_default_printer(selected_printer):
+            print(f"[WARNING] Impossible de définir l'imprimante: {selected_printer}")
 
     with sync_playwright() as p:
         launch_args = []
