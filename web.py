@@ -8,7 +8,7 @@ import logging
 from datetime import date, timedelta, datetime
 
 import script as _script_mod
-from script import MENU_CONFIG, parse_ddmmyyyy_strict, run_job, fetch_patients_without_bilans, fetch_all_patients
+from script import MENU_CONFIG, parse_ddmmyyyy_strict, run_job, fetch_patients_without_bilans, fetch_all_patients, get_printers
 
 app = Flask(__name__)
 LOGGING_ENABLED = False
@@ -249,6 +249,14 @@ _HTML = """<!DOCTYPE html>
         <label><input type="checkbox" name="bookings" value="{{ item }}" checked> {{ item }}</label>
         {% endfor %}
       </div>
+
+      <label for="printer">Imprimante</label>
+      <select name="printer" id="printer" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:.95rem;">
+        <option value="">Imprimante par défaut</option>
+        {% for p in printers %}
+        <option value="{{ p }}">{{ p }}</option>
+        {% endfor %}
+      </select>
 
       <div style="margin-top:20px;" class="run-wrap" id="runWrap">
         <button type="submit" class="btn" id="submitBtn">▶ Lancer le travail</button>
@@ -635,6 +643,7 @@ def index():
         tomorrow=(today + timedelta(days=1)).strftime("%d/%m/%Y"),
         default_username="",
         headless=_script_mod.HEADLESS,
+        printers=get_printers(),
     )
 
 
@@ -649,6 +658,7 @@ def run_endpoint():
     username       = request.form.get("username", "").strip()
     password       = request.form.get("password", "")
     sel_bookings   = request.form.getlist("bookings")
+    sel_printer    = request.form.get("printer", "").strip()
 
     if not username:
         return jsonify({"error": "Nom d'utilisateur requis."}), 400
@@ -702,6 +712,7 @@ def run_endpoint():
         "date":      selected_date,
         "time":      selected_time,
         "bookings":  sel_bookings,
+        "printer":   sel_printer or "Par défaut",
         "username":  username,
         "status":    "running",
         "error":     None,
@@ -711,7 +722,7 @@ def run_endpoint():
     # ── Run automation in a background thread ──
     def _bg():
         try:
-            run_job(ipp_list, selected_date, selected_time, sel_bookings, username, password)
+            run_job(ipp_list, selected_date, selected_time, sel_bookings, username, password, printer=sel_printer or None)
             _update_job(job_id, "completed")
         except Exception as exc:
             _update_job(job_id, "failed", str(exc))
