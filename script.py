@@ -51,6 +51,7 @@ CHK_BES_21 = "#_ctl0_cph_lvwActividades__ctl21_CheckBox1"
 # Bilan d'hémostase: TP+INR (B2361) and TCA/TCK (B239)
 CHK_HEMOS_9 = "#_ctl0_cph_lvwActividades__ctl9_CheckBox1"
 CHK_HEMOS_10 = "#_ctl0_cph_lvwActividades__ctl10_CheckBox1"
+CHK_HEMOS_12 = "#_ctl0_cph_lvwActividades__ctl12_CheckBox1"
 
 # BIM4 checkbox
 CHK_BIM4_7 = "#_ctl0_cph_lvwActividades__ctl7_CheckBox1"
@@ -68,7 +69,7 @@ MENU_CONFIG = {
     "PCT": {"code": "BIM4", "checkboxes": [CHK_BIM4_7]},
     "Ionogramme sanguin": {"code": "BES", "checkboxes": [CHK_BES_7, CHK_BES_8, CHK_BES_9, CHK_BES_15]},
     "Bilan hépatique": {"code": "BES", "checkboxes": [CHK_BES_3, CHK_BES_16, CHK_BES_17, CHK_BES_18, CHK_BES_19, CHK_BES_20]},
-    "Bilan d'hémostase": {"code": "HEMOS", "checkboxes": [CHK_HEMOS_9, CHK_HEMOS_10]},
+    "Bilan d'hémostase": {"code": "HEMOS", "checkboxes": [CHK_HEMOS_9, CHK_HEMOS_10, CHK_HEMOS_12]},
     "Albumine": {"code": "BES2", "checkboxes": [CHK_BES2_2]},
 }
 
