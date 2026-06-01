@@ -129,13 +129,16 @@ echo [5/5] Checking for updates...
     powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%WEB_PY_URL%', 'web.py.tmp'); Move-Item -Force 'web.py.tmp' 'web.py'; Write-Host 'web.py updated successfully!' } catch { Write-Host 'web.py update check failed, using local version.' }"
     powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%RUN_BAT_URL%', 'run.bat.new'); Write-Host 'Launcher update downloaded.' } catch { Write-Host 'Launcher update check failed, using local version.' }"
 
+REM Detect LAN IP
+for /f "tokens=*" %%i in ('powershell -Command "try { $s = New-Object System.Net.Sockets.UdpClient; $s.Connect('8.8.8.8', 80); $s.Client.LocalEndPoint.Address.ToString(); $s.Close() } catch { 'localhost' }"') do set "LAN_IP=%%i"
+
 echo.
 echo ========================================
 echo      Starting Web Interface...
 echo ========================================
 echo.
 echo   Access the app at:
-echo     http://localhost:5000
+echo     http://%LAN_IP%:5000/
 echo.
 
 REM Run the web server
