@@ -103,7 +103,7 @@ python -m pip install --upgrade pip --quiet
 REM Install dependencies
 echo.
 echo [4/5] Installing/checking dependencies...
-python -m pip install playwright beaupy flask
+python -m pip install playwright beaupy flask --quiet
 if %errorlevel% neq 0 (
     echo.
     echo [ERROR] Failed to install Python packages!
@@ -111,12 +111,9 @@ if %errorlevel% neq 0 (
     pause
     exit /b 1
 )
-echo Dependencies installed successfully.
 
-REM Install Playwright browsers
-echo.
-echo [4.5/5] Installing Playwright browsers (skipped if already installed)...
-python -m playwright install chromium
+REM Install Playwright browsers (quiet)
+python -m playwright install chromium >nul
 if %errorlevel% neq 0 (
     echo.
     echo [ERROR] Failed to install Playwright browsers!
@@ -132,10 +129,16 @@ echo [5/5] Checking for updates...
     powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%WEB_PY_URL%', 'web.py.tmp'); Move-Item -Force 'web.py.tmp' 'web.py'; Write-Host 'web.py updated successfully!' } catch { Write-Host 'web.py update check failed, using local version.' }"
     powershell -Command "try { (New-Object System.Net.WebClient).DownloadFile('%RUN_BAT_URL%', 'run.bat.new'); Write-Host 'Launcher update downloaded.' } catch { Write-Host 'Launcher update check failed, using local version.' }"
 
+REM Detect LAN IP
+for /f "tokens=*" %%i in ('powershell -Command "try { $s = New-Object System.Net.Sockets.UdpClient; $s.Connect('8.8.8.8', 80); $s.Client.LocalEndPoint.Address.ToString(); $s.Close() } catch { 'localhost' }"') do set "LAN_IP=%%i"
+
 echo.
 echo ========================================
 echo      Starting Web Interface...
 echo ========================================
+echo.
+echo   Access the app at:
+echo     http://%LAN_IP%:5000/
 echo.
 
 REM Run the web server
