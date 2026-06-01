@@ -200,13 +200,16 @@ else
     echo "Neither curl nor wget found, skipping update check."
 fi
 
+# Detect LAN IP
+LAN_IP=$(python -c "import socket; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.connect(('8.8.8.8',80)); print(s.getsockname()[0]); s.close()" 2>/dev/null || echo "localhost")
+
 echo ""
 echo "========================================"
 echo "      Starting Web Interface..."
 echo "========================================"
 echo ""
 echo "  Access the app at:"
-echo "    http://localhost:5000"
+echo "    http://${LAN_IP}:5000/"
 echo ""
 
 # Run the web server
