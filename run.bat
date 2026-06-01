@@ -103,7 +103,7 @@ python -m pip install --upgrade pip --quiet
 REM Install dependencies
 echo.
 echo [4/5] Installing/checking dependencies...
-python -m pip install playwright beaupy flask
+python -m pip install playwright beaupy flask --quiet
 if %errorlevel% neq 0 (
     echo.
     echo [ERROR] Failed to install Python packages!
@@ -111,12 +111,9 @@ if %errorlevel% neq 0 (
     pause
     exit /b 1
 )
-echo Dependencies installed successfully.
 
-REM Install Playwright browsers
-echo.
-echo [4.5/5] Installing Playwright browsers (skipped if already installed)...
-python -m playwright install chromium
+REM Install Playwright browsers (quiet)
+python -m playwright install chromium >nul
 if %errorlevel% neq 0 (
     echo.
     echo [ERROR] Failed to install Playwright browsers!
@@ -136,6 +133,9 @@ echo.
 echo ========================================
 echo      Starting Web Interface...
 echo ========================================
+echo.
+echo   Access the app at:
+echo     http://localhost:5000
 echo.
 
 REM Run the web server

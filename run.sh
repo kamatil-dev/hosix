@@ -129,10 +129,8 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# Install Playwright browsers
-echo ""
-echo "[4.5/5] Installing Playwright browsers (skipped if already installed)..."
-python -m playwright install chromium
+# Install Playwright browsers (quiet)
+python -m playwright install chromium >/dev/null
 if [ $? -ne 0 ]; then
     echo "[ERROR] Failed to install Playwright browsers!"
     echo "You may need to install system dependencies:"
@@ -206,6 +204,9 @@ echo ""
 echo "========================================"
 echo "      Starting Web Interface..."
 echo "========================================"
+echo ""
+echo "  Access the app at:"
+echo "    http://localhost:5000"
 echo ""
 
 # Run the web server
